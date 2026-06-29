@@ -334,7 +334,7 @@ pub fn map_progenitor<E: serde::Serialize>(e: progenitor_client::Error<E>) -> Er
         Pe::CommunicationError(e) => Error::Http(e),
         Pe::ErrorResponse(rv) => {
             let status = rv.status().as_u16();
-            let body = serde_json::to_string(rv.as_ref()).unwrap_or_default();
+            let body = serde_json::to_string(&rv.into_inner()).unwrap_or_default();
             parse_api_errors(status, &body)
         }
         other => Error::Parse(other.to_string()),
@@ -419,6 +419,10 @@ fn into_value<T: serde::Serialize>(r: ResponseValue<T>) -> Result<serde_json::Va
     serde_json::to_value(r.into_inner()).map_err(|e| Error::Parse(e.to_string()))
 }
 
+fn ok_after<T>(_r: ResponseValue<T>) -> Result<serde_json::Value> {
+    Ok(serde_json::json!({ "ok": true }))
+}
+
 impl OtbrClient {
     pub fn new(base_url: &str) -> Self {
         Self {
@@ -427,12 +431,16 @@ impl OtbrClient {
     }
 
     pub async fn node_state(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_state().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_state().await.map_err(map_progenitor)?)
     }
 }
 ```
 
-Add `pub mod facade;` to `src/lib.rs`. If `get_node_state` is not the generated name (per Task 2 discovery), substitute the actual one.
+Add `pub mod facade;` to `src/lib.rs`.
+
+**Generated client shape (verified, see `.superpowers/sdd/generated-api.md`):** progenitor produced POSITIONAL async methods, not builders — call `self.inner.method(args).await` directly (no `.send()`, no `.body()`). Bodies pass by reference as the last argument. Reads returning a typed body use `into_value`; `set_*`/`delete_*`/`reset_node`/`add`/`remove` return `ResponseValue<()>` and use `ok_after` (which returns `{"ok": true}` rather than rendering an empty `null`). `into_value` and `ok_after` are both used by later tasks — define them now.
+
+The `node_state_returns_body` test is unaffected (it asserts the rendered value, not the call style).
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -510,7 +518,7 @@ impl OtbrClient {
     pub async fn submit_action(&self, body: serde_json::Value) -> Result<String> {
         let typed: types::ActionsClient =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
-        let resp = self.inner.invoke_action().body(typed).send().await.map_err(map_progenitor)?;
+        let resp = self.inner.invoke_action(&typed).await.map_err(map_progenitor)?;
         let v = serde_json::to_value(resp.into_inner()).map_err(|e| Error::Parse(e.to_string()))?;
         v["data"][0]["id"]
             .as_str()
@@ -519,7 +527,7 @@ impl OtbrClient {
     }
 
     pub async fn get_action(&self, id: &str) -> Result<serde_json::Value> {
-        into_value(self.inner.get_action().action_id(id).send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_action(id).await.map_err(map_progenitor)?)
     }
 
     pub async fn submit_and_wait(
@@ -545,7 +553,7 @@ impl OtbrClient {
 }
 ```
 
-If `body(typed)` does not type-check because the generated builder expects a borrowed or differently-named body, adjust per the Task 2 discovery (e.g. `.body(&typed)`); the `types::ActionsClient` deserialise step is unchanged.
+`invoke_action(&typed)` returns `ResponseValue<Map<String,Value>>`; the `data[0].id` dig is against that JSON map. See `.superpowers/sdd/generated-api.md` for the exact signature.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -817,44 +825,42 @@ Expected: FAIL (no `rloc16` subcommand).
 ```rust
 impl OtbrClient {
     pub async fn node_rloc(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_rloc().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_rloc().await.map_err(map_progenitor)?)
     }
     pub async fn node_rloc16(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_rloc16().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_rloc16().await.map_err(map_progenitor)?)
     }
     pub async fn node_ext_address(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_ext_address().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_ext_address().await.map_err(map_progenitor)?)
     }
     pub async fn node_network_name(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_network_name().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_network_name().await.map_err(map_progenitor)?)
     }
     pub async fn node_leader_data(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_leader_data().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_leader_data().await.map_err(map_progenitor)?)
     }
     pub async fn node_ext_panid(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_ext_pan_id().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_ext_pan_id().await.map_err(map_progenitor)?)
     }
     pub async fn node_num_of_router(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_num_of_router().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_num_of_router().await.map_err(map_progenitor)?)
     }
     pub async fn node_coprocessor_version(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_coprocessor_version().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_coprocessor_version().await.map_err(map_progenitor)?)
     }
     pub async fn node_ba_id(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_ba_id().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_ba_id().await.map_err(map_progenitor)?)
     }
     pub async fn node_info(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_information().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_node_information().await.map_err(map_progenitor)?)
     }
     pub async fn set_node_state(&self, state: &str) -> Result<serde_json::Value> {
-        into_value(
-            self.inner.set_node_state().body(state.to_string()).send().await.map_err(map_progenitor)?,
-        )
+        ok_after(self.inner.set_node_state(state).await.map_err(map_progenitor)?)
     }
 }
 ```
 
-If `get_node_information` requires the `AcceptJsonApi` header (the generated builder exposes a required setter), pass `.accept("application/json")` per the Task 2 discovery. If a builder name differs, substitute it.
+These are the verified positional signatures (no-arg reads return a typed body → `into_value`; `set_node_state(body: &str)` returns `ResponseValue<()>` → `ok_after`). The `AcceptJsonApi` header parameter was removed during the Task 2 patch, so `get_node_information` takes no extra argument.
 
 - [ ] **Step 4: Extend `NodeCmd` and dispatch**
 
@@ -934,41 +940,37 @@ Expected: FAIL.
 ```rust
 impl OtbrClient {
     pub async fn dataset_active(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_active_dataset().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_active_dataset().await.map_err(map_progenitor)?)
     }
     pub async fn dataset_pending(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_pending_dataset().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_pending_dataset().await.map_err(map_progenitor)?)
     }
     pub async fn set_dataset_active(&self, body: serde_json::Value) -> Result<serde_json::Value> {
         let typed: types::ActiveDataset =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
-        into_value(self.inner.set_active_dataset().body(typed).send().await.map_err(map_progenitor)?)
+        ok_after(self.inner.set_active_dataset(&typed).await.map_err(map_progenitor)?)
     }
     pub async fn set_dataset_pending(&self, body: serde_json::Value) -> Result<serde_json::Value> {
         let typed: types::PendingDataset =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
-        into_value(self.inner.set_pending_dataset().body(typed).send().await.map_err(map_progenitor)?)
+        ok_after(self.inner.set_pending_dataset(&typed).await.map_err(map_progenitor)?)
     }
     pub async fn commissioner_state(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_commissioner_state().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_commissioner_state().await.map_err(map_progenitor)?)
     }
     pub async fn set_commissioner_state(&self, state: &str) -> Result<serde_json::Value> {
-        into_value(
-            self.inner.set_commissioner_state().body(state.to_string()).send().await.map_err(map_progenitor)?,
-        )
+        ok_after(self.inner.set_commissioner_state(state).await.map_err(map_progenitor)?)
     }
     pub async fn commissioner_joiner(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_commissioner_joiner().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_commissioner_joiner().await.map_err(map_progenitor)?)
     }
     pub async fn add_commissioner_joiner(&self, body: serde_json::Value) -> Result<serde_json::Value> {
         let typed: types::JoinerData =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
-        into_value(self.inner.add_commissioner_joiner().body(typed).send().await.map_err(map_progenitor)?)
+        ok_after(self.inner.add_commissioner_joiner(&typed).await.map_err(map_progenitor)?)
     }
     pub async fn remove_commissioner_joiner(&self, spec: &str) -> Result<serde_json::Value> {
-        into_value(
-            self.inner.remove_commissioner_joiner().body(spec.to_string()).send().await.map_err(map_progenitor)?,
-        )
+        ok_after(self.inner.remove_commissioner_joiner(spec).await.map_err(map_progenitor)?)
     }
 }
 ```
@@ -1063,25 +1065,25 @@ Expected: FAIL.
 ```rust
 impl OtbrClient {
     pub async fn devices_list(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.list_devices().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.list_devices().await.map_err(map_progenitor)?)
     }
     pub async fn device_get(&self, id: &str) -> Result<serde_json::Value> {
-        into_value(self.inner.get_device().device_id(id).send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_device(id).await.map_err(map_progenitor)?)
     }
     pub async fn device_delete(&self, id: &str) -> Result<serde_json::Value> {
-        into_value(self.inner.delete_device().device_id(id).send().await.map_err(map_progenitor)?)
+        ok_after(self.inner.delete_device(id).await.map_err(map_progenitor)?)
     }
     pub async fn devices_delete_all(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.delete_devices().send().await.map_err(map_progenitor)?)
+        ok_after(self.inner.delete_devices().await.map_err(map_progenitor)?)
     }
     pub async fn diagnostics_list(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.list_diagnostics().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.list_diagnostics().await.map_err(map_progenitor)?)
     }
     pub async fn diagnostic_get(&self, id: &str) -> Result<serde_json::Value> {
-        into_value(self.inner.get_diagnostic().diagnostics_id(id).send().await.map_err(map_progenitor)?)
+        into_value(self.inner.get_diagnostic(id).await.map_err(map_progenitor)?)
     }
     pub async fn diagnostics_delete_all(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.delete_diagnostics().send().await.map_err(map_progenitor)?)
+        ok_after(self.inner.delete_diagnostics().await.map_err(map_progenitor)?)
     }
 }
 ```
@@ -1168,10 +1170,10 @@ Expected: FAIL.
 ```rust
 impl OtbrClient {
     pub async fn actions_list(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.list_actions().send().await.map_err(map_progenitor)?)
+        into_value(self.inner.list_actions().await.map_err(map_progenitor)?)
     }
     pub async fn actions_delete_all(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.delete_actions().send().await.map_err(map_progenitor)?)
+        ok_after(self.inner.delete_actions().await.map_err(map_progenitor)?)
     }
 }
 ```
@@ -1338,7 +1340,7 @@ git commit -m "Add README and finalise build"
 - Gated live integration tests → Task 12. ✓
 - Single crate lib + bin → Task 1. ✓
 
-**Generated-name risk:** generated builder/type/param names are assumed from the `operationId` and spec parameter/schema names and confirmed in Task 2 Step 8; every facade task instructs substituting the discovered name if progenitor differs. The `body(typed)` builder shape and any required `accept` header are the two spots most likely to need adjustment, flagged in Tasks 5 and 8.
+**Generated API (verified after Task 2):** progenitor 0.8 produced POSITIONAL async methods — `self.inner.method(args).await`, bodies passed by reference, returning `Result<ResponseValue<T>, Error<E>>` (no `.send()`/`.body()` builders). The facade tasks use this shape. Reads use `into_value`; `set_*`/`delete_*`/`reset_node`/`add`/`remove` return `ResponseValue<()>` and use `ok_after` (→ `{"ok": true}`). Exact signatures and type names are recorded in `.superpowers/sdd/generated-api.md`.
 
 **Placeholder scan:** no TBD/TODO; every code step contains complete code. ✓
 
