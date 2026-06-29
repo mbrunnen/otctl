@@ -2,6 +2,20 @@ use assert_cmd::Command;
 use httpmock::prelude::*;
 
 #[test]
+fn node_reset_without_yes_aborts() {
+    let server = MockServer::start();
+    let m = server.mock(|when, then| {
+        when.method(DELETE).path("/node");
+        then.status(200);
+    });
+    let mut cmd = Command::cargo_bin("otctl").unwrap();
+    cmd.args(["--base-url", &server.base_url(), "node", "reset"]);
+    cmd.write_stdin("no\n");
+    cmd.assert().failure();
+    m.assert_hits(0);
+}
+
+#[test]
 fn node_rloc16_reads_endpoint() {
     let server = MockServer::start();
     let m = server.mock(|when, then| {

@@ -95,7 +95,7 @@ pub async fn run(cli: Cli) -> Result<String> {
                         .read_line(&mut input)
                         .map_err(|e| Error::Parse(e.to_string()))?;
                     if input.trim() != "yes" {
-                        return Err(Error::Parse("reset aborted".into()));
+                        return Err(Error::Aborted("reset aborted".into()));
                     }
                 }
                 client.node_reset().await?

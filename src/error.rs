@@ -16,6 +16,8 @@ pub enum Error {
     Timeout,
     #[error("failed to parse response: {0}")]
     Parse(String),
+    #[error("{0}")]
+    Aborted(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
