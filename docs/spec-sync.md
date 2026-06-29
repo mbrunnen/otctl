@@ -8,12 +8,20 @@
 
 ## Local patches (do not lose these when re-syncing)
 
-1. Content type `application/vnd.api+json` rewritten to `application/json` so progenitor models bodies as typed.
+1. Content type `application/vnd.api+json` rewritten to `application/json` so progenitor models bodies as typed (20 occurrences).
 2. Added `operationId` to the 22 `/node/*` operations.
-3. `anyOf`-of-`$ref` unions changed to `oneOf` so progenitor emits enums.
+3. `anyOf`-of-`$ref` unions changed to `oneOf` so progenitor emits enums (5 schemas).
 4. Removed the `SparseFieldset` (`deepObject`) query parameter and its references.
 5. Removed the secondary `DatasetTlv` request body from the dataset PUTs (v1 sets datasets via the JSON form only).
-6. Removed `format: uuid` from the Actions id field so it generates as a plain `String` (avoids a uuid dependency).
+6. Removed `format: uuid` from the Actions id field and path parameters so they generate as plain `String` (avoids a uuid dependency).
+7. Removed `additionalProperties: false` from all schema definitions (10 occurrences) as progenitor parses it as a boolean rather than a schema object.
+8. De-duplicated `application/json` content entries created by patch 1, removing schema-less entries with examples only.
+9. Removed `text/plain` content type from GET dataset responses to satisfy progenitor's single response type requirement.
+10. Standardised inline error responses (400, 409) to component `$ref`s to prevent progenitor panic from mixed None/Type response types.
+11. Removed OPTIONS operations (`optionsActions`, `optionsDevices`, `optionsDiagnostics`) as reqwest has no `.options()` method.
+12. Removed `AcceptJsonApi` header parameter and all its `$ref` references (generated enum does not implement `TryFrom<HeaderValue>`).
+13. Removed `pattern:` constraints from schemas and parameters (9 occurrences) to avoid requiring the `regress` crate dependency.
+14. Removed invalid default values (`default: random` on integer fields, `default: not set` on integer field).
 
 ## Re-sync procedure
 
