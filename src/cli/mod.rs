@@ -62,6 +62,10 @@ pub enum NodeCmd {
     CoprocessorVersion,
     BaId,
     Info,
+    Reset {
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 pub async fn run(cli: Cli) -> Result<String> {
@@ -80,6 +84,22 @@ pub async fn run(cli: Cli) -> Result<String> {
             NodeCmd::CoprocessorVersion => client.node_coprocessor_version().await?,
             NodeCmd::BaId => client.node_ba_id().await?,
             NodeCmd::Info => client.node_info().await?,
+            NodeCmd::Reset { yes } => {
+                if !yes {
+                    eprintln!(
+                        "This will factory-reset the border router and erase all persistent data."
+                    );
+                    eprint!("Type 'yes' to confirm: ");
+                    let mut input = String::new();
+                    std::io::stdin()
+                        .read_line(&mut input)
+                        .map_err(|e| Error::Parse(e.to_string()))?;
+                    if input.trim() != "yes" {
+                        return Err(Error::Parse("reset aborted".into()));
+                    }
+                }
+                client.node_reset().await?
+            }
         },
         Command::Dataset { what } => match what {
             node_ext::DatasetCmd::Active { set: Some(f) } => {

@@ -17,3 +17,18 @@ fn node_rloc16_reads_endpoint() {
         .stdout(predicates::str::contains("17408"));
     m.assert();
 }
+
+#[test]
+fn node_reset_with_yes_calls_endpoint() {
+    let server = MockServer::start();
+    let m = server.mock(|when, then| {
+        when.method(DELETE).path("/node");
+        then.status(200);
+    });
+    let mut cmd = Command::cargo_bin("otctl").unwrap();
+    cmd.args(["--base-url", &server.base_url(), "node", "reset", "--yes"]);
+    cmd.assert()
+        .success()
+        .stdout(predicates::str::contains("ok"));
+    m.assert();
+}

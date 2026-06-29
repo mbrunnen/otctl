@@ -112,6 +112,10 @@ impl OtbrClient {
         )
     }
 
+    pub async fn node_reset(&self) -> Result<serde_json::Value> {
+        ok_after(self.inner.reset_node().await.map_err(map_progenitor)?)
+    }
+
     pub async fn submit_action(&self, body: serde_json::Value) -> Result<String> {
         let typed: types::ActionsClient =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
