@@ -39,9 +39,6 @@ paths:
         Failing to parse the query parameter(s) leads to a 400 Bad Request Error.
 
         Failing to populate any of the dynamic attributes may lead to a 500 Internal Server Error.
-      parameters:
-        - $ref: "#/components/parameters/AcceptJsonApi"
-        - $ref: "#/components/parameters/SparseFieldset"
       responses:
         "200":
           description: |
@@ -86,40 +83,6 @@ paths:
                       stableDataVersion: 176
                       leaderRouterId: 78
                     extPanId: 'a7b7d5d07d9ec2fa'
-            application/vnd.api+json:
-              examples:
-                TBR:
-                  summary: Thread Border Router
-                  value:
-                    data:
-                      id: '96518e5497d5b9f3'
-                      type: threadBorderRouter
-                      attributes:
-                        rloc16: '0xf000'
-                        extAddress: '96518e5497d5b9f3'
-                        mlEidIid: '731f529f1266a17d'
-                        omrIpv6Address:
-                          - 'fd11:22:0:0:92de:b397:5758:368'
-                        hostname: 'knx-00fd5f0123a5.local'
-                        eui: '9035eafffef3e09c'
-                        role: 'leader'
-                        mode:
-                          deviceTypeFTD: false
-                          rxOnWhenIdle: false
-                          fullNetworkData: false
-                        baId: 'e11e23c164311ce642f93297b095b2f8'
-                        routerCount: 0
-                        rlocAddress: "fd7a:9882:1777:a344:0:ff:fe00:f000"
-                        networkName: "OpenThread-1234"
-                        routerId: 0
-                        leaderData:
-                          partitionId: 0
-                          weighting: 193
-                          dataVersion: 97
-                          stableDataVersion: 176
-                          leaderRouterId: 78
-                        extPanId: 'a7b7d5d07d9ec2fa'
-                        created: '2025-02-25T17:31:54+02:00'
         "400":
           $ref: "#/components/responses/BadRequestError"
         "404":
@@ -150,8 +113,6 @@ paths:
 
         Failing to parse the query parameter(s) leads to a 400 Bad Request Error.
 
-      parameters:
-        - $ref: "#/components/parameters/AcceptJsonApi"
       responses:
         "200":
           description: List of actions.
@@ -165,13 +126,6 @@ paths:
                   - application/vnd.api+json
           content:
             application/json:
-              schema:
-                oneOf:
-                  - type: array
-                    items: 
-                      type: object
-                  - type: object
-            application/vnd.api+json:
               schema:
                 $ref: "#/components/schemas/ActionsCollection"
               example:
@@ -267,13 +221,11 @@ paths:
         - when a *Task* item completes unsuccessfully, its `status` attribute changes to `stopped`
         - when a *Task* item fails, its `status` attribute changes to `failed`
 
-      parameters:
-        - $ref: "#/components/parameters/AcceptJsonApi"
       requestBody:
         description: Creates a new task.
         required: true
         content:
-          application/vnd.api+json:
+          application/json:
             schema:
               $ref:  "#/components/schemas/ActionsClient"
             examples:
@@ -470,7 +422,7 @@ paths:
                 enum:
                   - application/vnd.api+json
           content:
-            application/vnd.api+json:
+            application/json:
               schema:
                 type: object
               example:
@@ -497,23 +449,6 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailableError"
 
-    options:
-      operationId: optionsActions
-      tags:
-        - Actions
-      summary: List of allowed operations.
-      description: |
-        Lists allowed operations.
-      responses:
-        "204":
-          description: List of allowed operations.
-          headers:
-            Allow:
-              description: Allowed operations
-              schema:
-                type: string
-                example: "GET, POST, DELETE, OPTIONS"
-
     delete:
       operationId: deleteActions
       tags:
@@ -539,7 +474,6 @@ paths:
         otherwise returns 404 Not Found.
       parameters:
         - $ref: "#/components/parameters/actionId"
-        - $ref: "#/components/parameters/AcceptJsonApi"
       responses:
         "200":
           description: |
@@ -554,13 +488,6 @@ paths:
                   - application/vnd.api+json
           content:
             application/json:
-              schema:
-                oneOf:
-                  - type: array
-                    items: 
-                      type: object
-                  - type: object
-            application/vnd.api+json:
               schema:
                 $ref: "#/components/schemas/ActionItem"
               examples:
@@ -666,9 +593,6 @@ paths:
         - baId
       tags:
         - Devices
-      parameters:
-        - $ref: "#/components/parameters/SparseFieldset"
-        - $ref: "#/components/parameters/AcceptJsonApi"
       responses:
         "200":
           description: |
@@ -689,68 +613,12 @@ paths:
                     items: 
                       type: object
                   - type: object
-            application/vnd.api+json:
-              examples:
-                initial:
-                  summary: Initial Collection
-                  value:
-                    meta:
-                      collection:
-                        offset: 0
-                        limit: 1
-                        total: 1
-                    data:
-                      - id: '96518e5497d5b9f3'
-                        type: threadBorderRouter
-                        attributes:
-                          rloc16: '0xf000'
-                          extAddress: '96518e5497d5b9f3'
-                          mlEidIid: '731f529f1266a17d'
-                          omrIpv6Address:
-                            - 'fd11:22:0:0:92de:b397:5758:368'
-                          hostname: 'knx-00fd5f0123a5.local'
-                          eui: '9035eafffef3e09c'
-                          role: 'leader'
-                          mode:
-                            deviceTypeFTD: false
-                            rxOnWhenIdle: false
-                            fullNetworkData: false
-                          baId: 'e11e23c164311ce642f93297b095b2f8'
-                          routerCount: 0
-                          rlocAddress: "fd7a:9882:1777:a344:0:ff:fe00:f000"
-                          networkName: "OpenThread-1234"
-                          routerId": 0
-                          leaderData:
-                            partitionId: 0
-                            weighting: 193
-                            dataVersion: 97
-                            stableDataVersion: 176
-                            leaderRouterId: 78
-                          extPanId: 'a7b7d5d07d9ec2fa'
-                          created: '2025-02-25T17:31:54+02:00'
         "400":
           $ref: "#/components/responses/BadRequestError"
         "404":
           $ref: "#/components/responses/NotFoundError"
         "406":
           $ref: "#/components/responses/NotAcceptableError"
-
-    options:
-      operationId: optionsDevices
-      tags:
-        - Devices
-      summary: List of allowed operations.
-      description: |
-        Lists allowed operations.
-      responses:
-        "204":
-          description: List of allowed operations.
-          headers:
-            Allow:
-              description: Allowed operations
-              schema:
-                type: string
-                example: "GET, POST, DELETE, OPTIONS"
 
     delete:
       operationId: deleteDevices
@@ -777,8 +645,6 @@ paths:
         otherwise returns 404 Not Found.
       parameters:
         - $ref: "#/components/parameters/deviceId"
-        - $ref: "#/components/parameters/SparseFieldset"
-        - $ref: "#/components/parameters/AcceptJsonApi"
       responses:
         "200":
           description: |
@@ -814,27 +680,6 @@ paths:
                       deviceTypeFTD: false
                       rxOnWhenIdle: false
                       fullNetworkData: false
-            application/vnd.api+json:
-              examples:
-                threadDevice:
-                  summary: 96518e5497d5b9f3
-                  value:
-                    data:
-                      id: '96518e5497d5b9f3'
-                      type: threadDevice
-                      attributes:
-                        extAddress: '96518e5497d5b9f3'
-                        mlEidIid: '731f529f1266a17d'
-                        omrIpv6Address:
-                          - 'fd11:22:0:0:92de:b397:5758:368'
-                        hostname: 'knx-00fd5f0123a5.local'
-                        eui: '9035eafffef3e09c'
-                        role: 'leader'
-                        mode:
-                          deviceTypeFTD: false
-                          rxOnWhenIdle: false
-                          fullNetworkData: false
-                        created: '2025-02-25T17:31:54+02:00'
         "400":
           $ref: "#/components/responses/BadRequestError"
         "404":
@@ -878,9 +723,6 @@ paths:
         - all *Diagnostic* items are created through their corresponding *Task*
       tags:
         - Diagnostics
-      parameters:
-        - $ref: "#/components/parameters/SparseFieldset"
-        - $ref: "#/components/parameters/AcceptJsonApi"
       responses:
         "200":
           description: |
@@ -904,206 +746,12 @@ paths:
                     items: 
                       type: object
                   - type: object
-            application/vnd.api+json:
-              examples:
-                empty:
-                  summary: Empty Collection
-                  value:
-                    meta:
-                      collection:
-                        offset: 0
-                        limit: 0
-                        total: 0
-                    data: []
-                all:
-                  summary: All types
-                  value:
-                    meta:
-                      collection:
-                        offset: 0
-                        limit: 5
-                        total: 5
-                    data:
-                      - id: 1f48bf82-acee-45a1-9038-e2748860a467
-                        type: threadDiscoveryDiagnostic
-                        attributes:
-                          created: '2023-10-31T15:35:41Z'
-                          networksInRange:
-                            - channel: 11
-                              panId: '0xABCD'
-                              extPanId: '60B5026528844E25'
-                              networkName: 'MyHome4'
-                              lqi: 64
-                            - channel: 26
-                              panId: '0x1234'
-                              extPanId: '1111111122222222'
-                              networkName: 'Formed-1234'
-                              lqi: 255
-                      - id: 'fd428d18-8528-45cf-8a2d-f191bef39b5d'
-                        type: 'threadNetworkDiagnostic'
-                        attributes:
-                          created: '2023-11-23T18:30:42Z'
-                          extAddress: '96518e5497d5b9f3'
-                          addr: '0x5000'
-                          leaderData:
-                            partitionId: 1794764107
-                            weighting: 64
-                            dataVersion: 64
-                            stableDataVersion: 230
-                            leaderRouterId: 60
-                          ipv6Addresses:
-                            - 'fdd2:399d:3564:aba6:36f1:b05d:d638:43b6'
-                            - 'fd11:22:0:0:aadb:cb2d:47b9:97bc'
-                          macCounters:
-                            ifInUnknownProtos: 0
-                            ifInErrors: 0
-                            ifOutErrors: 0
-                            ifInUcastPkts: 9
-                            ifInBroadcastPkts: 1167
-                            ifInDiscards: 0
-                            ifOutUcastPkts: 6
-                            ifOutBroadcastPkts: 926
-                            ifOutDiscards: 0
-                          batteryLevel: null
-                          supplyVoltage: 5000
-                          channelPages: [0]
-                          maxChildTimeout: 2880
-                          #lDevIdSubject: null
-                          #iDevIdCert: 'MIIC4zCCAkSgAwIBAgIBATAKBggqhkjOPQQDAjCBkjEpMCcGA1UEAwwgTU1CIE1hbnVmYWN0dXJlciBJc3N1aW5nIENBIDIwMjIxGjAYBgNVBAoMEU1NQiBSZXNlYXJjaCBJbmMuMTwwOgYDVQQLDDNDb3B5cmlnaHQgKEMpIE1NQiBOZXR3b3JrcyAyMDIyIEFsbCByaWdodHMgcmVzZXJ2ZWQxCzAJBgNVBAYTAkNBMCAXDTIzMDIyNzEzNTEwNloYDzIwNTMwMjI3MTM1MTA2WjCBkDEUMBIGA1UEAwwLUzU1ODEyLVkxMDAxEjAQBgNVBEEMCU9DVDEwMC5CUjETMBEGA1UEBRMKMDE1QzAwMDAyQzEmMCQGCSqGSIb3DQEJCAwXOTAtMzUtZWEtZmYtZmUtZjMtZTAtOWMxGjAYBgNVBAoMEU1NQiBSZXNlYXJjaCBJbmMuMQswCQYDVQQGEwJDTjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLqza8T6G213nioBgi75N2hVO4zz6kJ0rpy/N27fbgdtvg0xXM3IEP4V4DHMHs6Tj6VFBaZetN1GgAJK3tfQmdSjgYgwgYUwHQYDVR0OBBYEFDppWazktbVBBdRuBYCS/UxbtqmJMB8GA1UdIwQYMBaAFNrObnu7+lzvjzUxX7Y3AqIQmnBiMA4GA1UdDwEB/wQEAwIDiDAMBgNVHRMBAf8EAjAAMCUGA1UdEQQeMByCGm1kNjAyNHpjLmFkMDAxLnNpZW1lbnMubmV0MAoGCCqGSM49BAMCA4GMADCBiAJCAf2mTC+/csj4urmO2+jnNxcy5MUUba6T1Sb32wwd0cu9w9taRAg72+cEmFat4RxpjP/4VB4E3Y8VzqOuxod34EEDAkIBZstQj9117VR+6FVEY14rdiCC407L5YwoUJZ8v2KiXEit0GZliXuSPvECNdSDK5eLqoIhe2sfafkP92rfwh5UP+o='
-                          eui: '9035eafffef02ca9'
-                          threadVersion: 4
-                          vendorName: 'VendorName'
-                          vendorModel: 'VendorModel'
-                          vendorVersion: '1.0.0'
-                          stackVersion: 'openthread-esp32/-; esp32; Nov 1 2023 01:02:03'
-                          routerNeighbors:
-                            - addr: '0xf000'
-                              extAddress: '96518e5497d5b9f3'
-                              threadVersion: 4
-                              connTime: 43742
-                              linkMargin: 85
-                              averageRssi: -23
-                              lastRssi: -20
-                              frameErrorRate: 0.0
-                              msgErrorRate: 0.0
-                          mleCounters:
-                            roleDisabled: 1
-                            roleDetached: 1
-                            roleChild: 1
-                            roleRouter: 1
-                            roleLeader: 0
-                            attachAttempts: 1
-                            partitionChanges: 0
-                            betterAttachAttempts: 0
-                            parentChanges: 1
-                            trackingTime: 44000.000
-                            roleDisabledTime: 21.434
-                            roleDetachedTime: 174.560
-                            roleChildTime: 62.006
-                            roleRouterTime: 43742.000
-                            roleLeaderTime: 0.0
-                          brCounters:
-                            ifInUcastPkts: 0
-                            ifInBroadcastPkts: 0
-                            ifOutUcastPkts: 0
-                            ifOutBroadcastPkts: 0
-                            raRx: 1801
-                            raTxSuccess: 602
-                            raTxFailed: 0
-                            rsRx: 218
-                            rsTxSuccess: 3
-                            rsTxFailed: 0
-                          isLeader: true
-                          hostsService: true
-                          isPrimaryBBR: true
-                          isBorderRouter: true
-                      - id: 'beed10ee-f73f-4a61-992c-5738d5ab9e42'
-                        type: 'threadNetworkDiagnostic'
-                        attributes:
-                          created: '2023-11-23T18:30:23Z'
-                          extAddress: '2a55d952bc7b4008'
-                          rloc16: '0x5004'
-                          mode:
-                            rxOnWhenIdle: false
-                            fullThreadDevice: false
-                            fullNetworkData: true
-                          childTimeout: 2880
-                          leaderData:
-                            partitionId: 1794764107
-                            weighting: 64
-                            dataVersion: 64
-                            stableDataVersion: 230
-                            leaderRouterId: 60
-                          ipv6Addresses:
-                            - 'fdd2:399d:3564:aba6:e5de:b9d2:260a:2685'
-                            - 'fd11:22:0:0:3abd:e522:97a8:7083'
-                          macCounters:
-                            ifInUnknownProtos: 0
-                            ifInErrors: 0
-                            ifOutErrors: 0
-                            ifInUcastPkts: 231
-                            ifInBroadcastPkts: 0
-                            ifInDiscards: 0
-                            ifOutUcastPkts: 5376
-                            ifOutBroadcastPkts: 1
-                            ifOutDiscards: 0
-                          batteryLevel: 82
-                          supplyVoltage: null
-                          eui: 'f4ce36dbdca16d79'
-                          threadVersion: null
-                          vendorName: 'VendorName'
-                          vendorModel: 'VendorModel'
-                          vendorVersion: '1.0.0'
-                          stackVersion: 'OPENTHREAD/9cf62ff-dirty; NRF52840; Sep 13 2023 06:50:37'
-                          mleCounters:
-                            roleDisabled: 1
-                            roleDetached: 1
-                            roleChild: 1
-                            roleRouter: 0
-                            roleLeader: 0
-                            attachAttempts: 1
-                            partitionChanges: 0
-                            betterAttachAttempts: 0
-                            parentChanges: 1
-                            trackingTime: 43576.123
-                            roleDisabledTime: 20.788
-                            roleDetachedTime: 342.333
-                            roleChildTime: 43213.002
-                            roleRouterTime: 0.0
-                            roleLeaderTime: 0.0
-                      - id: 688f881a-b3d5-4261-949c-9c18dfdd7fca
-                        type: energyScanReport
-                        attributes:
-                          origin: 'f2f307043724e8d0'
-                          report:
-                            - channel: 11
-                              maxRssi: [-45, -55, -50]
-                            - channel: 12
-                              maxRssi: [-45, -55, -50]
-                          created: '2023-10-31T15:32:29Z'
         "400":
           $ref: "#/components/responses/BadRequestError"
         "406":
           $ref: "#/components/responses/NotAcceptableError"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
-    options:
-      operationId: optionsDiagnostics
-      tags:
-        - Diagnostics
-      summary: List of allowed operations.
-      description: |
-        Lists allowed operations.
-      responses:
-        "204":
-          description: List of allowed operations.
-          headers:
-            Allow:
-              description: Allowed operations
-              schema:
-                type: string
-                example: "GET, POST, DELETE, OPTIONS"
 
     delete:
       operationId: deleteDiagnostics
@@ -1130,7 +778,6 @@ paths:
         - Diagnostics
       parameters:
         - $ref: "#/components/parameters/diagnosticsId"
-        - $ref: "#/components/parameters/AcceptJsonApi"
       responses:
         "200":
           description: |
@@ -1161,22 +808,6 @@ paths:
                         maxRssi: [-45, -55, -50]
                       - channel: 12
                         maxRssi: [-45, -55, -50]
-            application/vnd.api+json:
-              examples:
-                energyScanReport:
-                  summary: 688f881a-b3d5-4261-949c-9c18dfdd7fca
-                  value:
-                    data:
-                      id: 688f881a-b3d5-4261-949c-9c18dfdd7fca
-                      type: energyScanReport
-                      attributes:
-                        origin: 'f2f307043724e8d0'
-                        report:
-                          - channel: 11
-                            maxRssi: [-45, -55, -50]
-                          - channel: 12
-                            maxRssi: [-45, -55, -50]
-                        created: '2023-10-31T15:32:29Z'
         "400":
           $ref: "#/components/responses/BadRequestError"
         "404":
@@ -1204,6 +835,7 @@ paths:
 
   /node:
     get:
+      operationId: getNode
       tags:
         - node
       summary: Get current active node parameters
@@ -1223,17 +855,11 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
-                  - type: array
-                    items: 
-                      type: object
-                  - type: object
-            application/vnd.api+json:
-              schema:
                 type: object
         "415":
           $ref: "#/components/responses/UnsupportedMediaTypeError"
     delete:
+      operationId: resetNode
       tags:
         - node
       summary: Erase all persistent information, essentially factory reset the Border Router.
@@ -1246,6 +872,7 @@ paths:
           description: Thread interface is in wrong state.
   /node/ba-id:
     get:
+      operationId: getNodeBaId
       tags:
         - node
       summary: Get the border agent ID
@@ -1260,6 +887,7 @@ paths:
                 example: "AA897CA8A67F6E6DD6166133AD1562A5"
   /node/rloc:
     get:
+      operationId: getNodeRloc
       tags:
         - node
       summary: Routing Locator IPv6 address of this Thread node.
@@ -1274,6 +902,7 @@ paths:
                 example: "fda4:728e:4b39:bc4a:0:ff:fe00:1000"
   /node/rloc16:
     get:
+      operationId: getNodeRloc16
       tags:
         - node
       summary: Routing Locator Router and Child ID (RLOC16).
@@ -1289,6 +918,7 @@ paths:
                 example: 4096
   /node/ext-address:
     get:
+      operationId: getNodeExtAddress
       tags:
         - node
       summary: IEEE 802.15.4 Extended Address (EUI-64).
@@ -1303,6 +933,7 @@ paths:
                 example: "C21F906BE0352A4C"
   /node/state:
     get:
+      operationId: getNodeState
       tags:
         - node
       summary: Get current Thread state.
@@ -1323,6 +954,7 @@ paths:
                 description: Current state
                 example: "leader"
     put:
+      operationId: setNodeState
       tags:
         - node
       summary: Set current Thread state.
@@ -1348,6 +980,7 @@ paths:
               example: "enable"
   /node/network-name:
     get:
+      operationId: getNodeNetworkName
       tags:
         - node
       summary: Thread network name this node is part of.
@@ -1362,6 +995,7 @@ paths:
                 example: "OpenThread-e445"
   /node/leader-data:
     get:
+      operationId: getNodeLeaderData
       tags:
         - node
       summary: Gets the network's leader data.
@@ -1376,6 +1010,7 @@ paths:
           $ref: "#/components/responses/InternalServerError"
   /node/ext-panid:
     get:
+      operationId: getNodeExtPanId
       tags:
         - node
       summary: Extended PAN ID.
@@ -1390,6 +1025,7 @@ paths:
                 example: "3CAB144450CF407E"
   /node/num-of-router:
     get:
+      operationId: getNodeNumOfRouter
       tags:
         - node
       summary: Get number of router devices
@@ -1404,6 +1040,7 @@ paths:
                 example: 1
   /node/dataset/active:
     get:
+      operationId: getActiveDataset
       tags:
         - node
       summary: Get current active operational dataset
@@ -1414,12 +1051,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ActiveDataset"
-            text/plain:
-              schema:
-                $ref: "#/components/schemas/DatasetTlv"
-        "204":
-          description: No active operational dataset
     put:
+      operationId: setActiveDataset
       tags:
         - node
       summary: Creates or updates the active operational dataset
@@ -1436,22 +1069,20 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/ActiveDataset"
-          plain/text:
-            schema:
-              $ref: "#/components/schemas/DatasetTlv"
       responses:
         "200":
           description: Successfully updated the active operational dataset.
         "201":
           description: Successfully created the active operational dataset.
         "400":
-          description: Invalid request body.
+          $ref: "#/components/responses/BadRequestError"
         "409":
-          description: Writing active operational dataset rejected because Thread network is active.
+          $ref: "#/components/responses/ConflictError"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /node/dataset/pending:
     get:
+      operationId: getPendingDataset
       tags:
         - node
       summary: Get current pending operational dataset
@@ -1462,12 +1093,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PendingDataset"
-            text/plain:
-              schema:
-                $ref: "#/components/schemas/DatasetTlv"
-        "204":
-          description: No pending operational dataset
     put:
+      operationId: setPendingDataset
       tags:
         - node
       summary: Creates or updates the pending operational dataset
@@ -1483,20 +1110,18 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/PendingDataset"
-          text/plain:
-            schema:
-              $ref: "#/components/schemas/DatasetTlv"
       responses:
         "200":
           description: Successfully updated the pending operational dataset.
         "201":
           description: Successfully created the pending operational dataset.
         "400":
-          description: Invalid request body.
+          $ref: "#/components/responses/BadRequestError"
         "500":
           $ref: "#/components/responses/InternalServerError"
   /node/commissioner/state:
     get:
+      operationId: getCommissionerState
       tags: 
         - node
         - commissioner
@@ -1516,6 +1141,7 @@ paths:
                 description: Current state
                 example: "active"
     put:
+      operationId: setCommissionerState
       tags:
         - node
         - commissioner
@@ -1528,7 +1154,7 @@ paths:
         "400":
           $ref: "#/components/responses/BadRequestError"
         "409":
-          description: Cannot set commissioner state because border router state is not active
+          $ref: "#/components/responses/ConflictError"
         "500":
           $ref: "#/components/responses/InternalServerError"
       requestBody:
@@ -1541,6 +1167,7 @@ paths:
               example: "enable"
   /node/commissioner/joiner:
     get:
+      operationId: getCommissionerJoiner
       tags:
         - node
       summary: Get current joiner data
@@ -1554,6 +1181,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/JoinerData"
     post:
+      operationId: addCommissionerJoiner
       tags:
         - node
       summary: Adds a new joiner
@@ -1572,6 +1200,7 @@ paths:
         "507":
           description: Number of joiners the commissioner supports is full and the new one cannot be added.
     delete:
+      operationId: removeCommissionerJoiner
       tags: 
         - node
       summary: Removes a joiner from the node
@@ -1597,6 +1226,7 @@ paths:
           description: request rejected because commissioner is not active.
   /node/coprocessor/version:
     get:
+      operationId: getCoprocessorVersion
       tags:
         - node
       summary: Get the coprocessor firmware version
@@ -1638,7 +1268,6 @@ components:
         eui:
           type: string
           description: A string of the EUI-64, mutually exclusive with `joinerId` and `discerner`.
-          pattern: ^[0-9a-fA-F]{16}$
           example: "0123456789abcdef"
         timeout:
           type: integer
@@ -1659,7 +1288,6 @@ components:
             A discerner in the form of the discerner hex value (optionally with leading 0x) 
             and bit length separated by a '/'.
             Field is mutually exclusive with `joinerId` and `eui`.
-          pattern: ^0x[0-9a-fA-F]{1,16}/[0-9]{1,2}$
           example: "0xabc/12"
         timeout:
           type: integer
@@ -1710,7 +1338,7 @@ components:
             types:
               type: array
               items:
-                anyOf:
+                oneOf:
                   - type: integer # For future TLVs; yields hex dump in Diagnostic item
                     minimum: 0
                   - type: string
@@ -1762,7 +1390,7 @@ components:
             types:
               type: array
               items:
-                anyOf:
+                oneOf:
                   - type: integer # For future TLVs; yields hex dump in Diagnostic item
                     minimum: 0
                   - type: string
@@ -1880,13 +1508,12 @@ components:
           type: array
           minItems: 1
           items:
-            anyOf:
+            oneOf:
               - $ref: "#/components/schemas/ActionsClient_addThreadDeviceTask"
               - $ref: "#/components/schemas/ActionsClient_getNetworkDiagnosticTask"
               - $ref: "#/components/schemas/ActionsClient_resetNetworkDiagCounterTask"
               - $ref: "#/components/schemas/ActionsClient_getEnergyScanTask"
               - $ref: "#/components/schemas/ActionsClient_updateDeviceCollectionTask"
-        additionalProperties: false
 
     ActionsClient_addThreadDeviceTask:
       allOf:
@@ -1895,7 +1522,6 @@ components:
           required:
             - type
             - attributes
-          additionalProperties: false
 
     ActionsClient_getNetworkDiagnosticTask:
       allOf:
@@ -1910,8 +1536,6 @@ components:
               required:
                 - destination
                 - types
-            additionalProperties: false
-          additionalProperties: false
 
     ActionsClient_resetNetworkDiagCounterTask:
       allOf:
@@ -1925,8 +1549,6 @@ components:
               type: object
               required:
                 - types
-              additionalProperties: false
-            additionalProperties: false
 
     ActionsClient_getEnergyScanTask:
       allOf:
@@ -1945,8 +1567,6 @@ components:
                 - period
                 - scanDuration
                 - timeout
-              additionalProperties: false
-            additionalProperties: false
 
     ActionsClient_updateDeviceCollectionTask:
       allOf:
@@ -1963,8 +1583,6 @@ components:
                 - maxRetries
                 - deviceCount
                 - timeout
-              additionalProperties: false
-            additionalProperties: false
 
     ### Actions Responses #######################################################
     Meta:
@@ -2009,7 +1627,7 @@ components:
         data:
           type: array
           items:
-            anyOf:
+            oneOf:
               - $ref: "#/components/schemas/ActionsServer_addThreadDeviceTask"
               - $ref: "#/components/schemas/ActionsServer_getNetworkDiagnosticTask"
               - $ref: "#/components/schemas/ActionsServer_resetNetworkDiagCounterTask"
@@ -2022,7 +1640,7 @@ components:
         - data
       properties:
         data:
-          anyOf:
+          oneOf:
             - $ref: "#/components/schemas/ActionsServer_addThreadDeviceTask"
             - $ref: "#/components/schemas/ActionsServer_getNetworkDiagnosticTask"
             - $ref: "#/components/schemas/ActionsServer_resetNetworkDiagCounterTask"
@@ -2038,7 +1656,6 @@ components:
       properties:
         id:
           type: string
-          format: uuid
         type:
           type: string
         attributes:
@@ -2176,22 +1793,18 @@ components:
     ShortAddr:
       description: Rloc16 address, formated as hex-string with leading '0x'
       type: string
-      pattern: ^0x[0-9a-fA-F]{4}$
 
     LongAddr:
       description: Extended address.
       type: string
-      pattern: ^(0x)?[0-9a-fA-F]{16}$
 
     MlEidIid:
       description: The ML-EID Interface Identifier.
       type: string
-      pattern: ^(0x)?[0-9a-fA-F]{16}$
 
     pskd:
       description: Joining device's pre-shared key
       type: string
-      pattern: ^[0-9ABCDEFGHJKLMNPRSTUVWXY]{6,32}$
       example: J01NME
 
     Channel:
@@ -2257,13 +1870,11 @@ components:
           description: IEEE 802.15.4 PAN ID of the Thread network
           format: uint16
           example: 58437
-          default: random
         channel:
           type: integer
           description: IEEE 802.15.4 channel of the Thread network
           format: uint16
           example: 21
-          default: random
         pskc:
           type: string
           description: The pre-shared commissioner key
@@ -2292,7 +1903,6 @@ components:
           description: Delay timer in milliseconds
           format: uint32
           example: 30000
-          default: not set
 
     SecurityPolicy:
       type: object
@@ -2404,17 +2014,6 @@ components:
   #############################################################################
   parameters:
 
-    AcceptJsonApi:
-      name: Accept
-      description: Must be set to `application/vnd.api+json` or `application/json`
-      in: header
-      required: false
-      schema:
-        type: string
-        enum:
-          - application/json
-          - application/vnd.api+json
-
     actionId:
       name: actionId
       description: ID of the requested Action item (Task).
@@ -2422,7 +2021,6 @@ components:
       required: true
       schema:
         type: string
-        format: uuid
 
     deviceId:
       name: deviceId
@@ -2431,7 +2029,6 @@ components:
       required: true
       schema:
         type: string
-        pattern: ^[0-9a-fA-F]{16}$
         description: Alphanumeric hex string of length 16
 
     diagnosticsId:
@@ -2441,78 +2038,7 @@ components:
       required: true
       schema:
         type: string
-        format: uuid
 
-    SparseFieldset:
-      name: fields
-      description: |
-        A selector that allows clients to request a subset of items of the given type only:
-        - with all attributes, for example, `fields[addThreadDeviceTask]` or `fields[{type}]` in general
-        - with selected attributes only ("Sparse Fieldset"), `fields[nodeDevice]=vendorModel,operationalDataset.active.channel` or `fields[{type}]={attributeKey}(,{attributeKey})*` in general
-
-        ## Condition
-        The `{type}` must be given (in other words, not empty).
-        The value of the parameter must be fully omitted (in other words, no `=` in query) or contain one or more type-specific `{attributeKey}`s in a comma-separated list.
-        An `{attributeKey}` may use the dot notation to select a subordinate field of the attribute.
-
-        Allowed characters for `{type}` and `{attributeKey}` are alphanumeric characters, underscores (`_`), hyphens (`-`), and dots (`.`) for nested fields. Commas (`,`) are used as separators.
-        Allowed character set (regex): `^[A-Za-z0-9_.\-\,]+$`
-
-        ## Examples
-        - `?fields[threadDevice]=hostname,role`
-        - `?fields[addThreadDeviceTask]=eui,pskd&fields[threadDevice]=hostname`
-        - `?fields[threadDevice]` (all attributes for threadDevice)
-
-      in: query
-      style: deepObject
-      required: false
-      schema:
-        type: object
-        #patternProperties: '^\w+$'
-        #items:
-        #  type: string
-        #  pattern: '^\w+$'
-        properties:
-           type:
-            type: array
-            items:
-              type: string
-              enum:
-              - threadDevice
-              - threadBorderRouter
-              - networkDiagnostics
-              - energyReport
-              - addThreadDeviceTask
-              - getNetworkDiagnosticTask
-              - resetNetworkDiagCounterTask
-              - getEnergyScanTask
-              - updateDeviceCollectionTask
-            minItems: 1
-            maxItems: 1
-            attributes:
-              type: string
-              pattern: '^[A-Za-z0-9_.\-]+(,[A-Za-z0-9_.\-]+)*$'
-              description: |
-                A comma-separated list of attribute keys to include in the response.
-                If omitted, all attributes of the type are included.
-      examples:
-        allAttributes:
-          summary: All attributes for a type
-          value:
-            fields[threadDevice]: ""
-        selectedAttributes:
-          summary: Selected attributes for a type
-          value:
-            fields[threadDevice]: "hostname,role"
-        multipleTypes:
-          summary: Selected attributes for multiple types
-          value:
-            fields[threadDevice]: "hostname,role"
-            fields[addThreadDeviceTask]: "eui,pskd"
-        nestedAttributes:
-          summary: Nested attributes for a type
-          value:
-            fields[threadDevice]: "mode.deviceTypeFTD,mode.rxOnWhenIdle"
 
   ### Responses ###############################################################
   #############################################################################
@@ -2524,12 +2050,6 @@ components:
         The client SHOULD perform action(s) to provide valid syntax before retrying the request.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: "Bad Request"
-            status: 400
-        application/vnd.api+json:
           schema:
             $ref: "#/components/schemas/Errors"
           example:
@@ -2545,12 +2065,6 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: Not Found
-            status: 404
-        application/vnd.api+json:
-          schema:
             $ref: "#/components/schemas/Errors"
           example:
             errors:
@@ -2564,12 +2078,6 @@ components:
         The client SHOULD perform action(s) to re-align with the API before retrying the request.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: Method Not Allowed
-            status: 405
-        application/vnd.api+json:
           schema:
             $ref: "#/components/schemas/Errors"
           example:
@@ -2585,13 +2093,6 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: Not Acceptable
-            status: 406
-            detail: "Supported media types: application/json, application/vnd.api+json"
-        application/vnd.api+json:
-          schema:
             $ref: "#/components/schemas/Errors"
           example:
             errors:
@@ -2605,12 +2106,6 @@ components:
         The client SHOULD perform action(s) validate correctness of the request and retry the validated request after a longer period of time.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: Request Timeout
-            status: 408
-        application/vnd.api+json:
           schema:
             $ref: "#/components/schemas/Errors"
           example:
@@ -2627,12 +2122,6 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: Conflict
-            status: 409
-        application/vnd.api+json:
-          schema:
             $ref: "#/components/schemas/Errors"
           example:
             errors:
@@ -2648,12 +2137,6 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: Unsupported Media Type
-            status: 415
-        application/vnd.api+json:
-          schema:
             $ref: "#/components/schemas/Errors"
           example:
             errors:
@@ -2667,12 +2150,6 @@ components:
         The client SHOULD perform action(s) to correct the request body before retrying the request.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: Unprocessable Content
-            status: 422
-        application/vnd.api+json:
           schema:
             $ref: "#/components/schemas/Errors"
           example:
@@ -2688,12 +2165,6 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: Internal Server Error
-            status: 500
-        application/vnd.api+json:
-          schema:
             $ref: "#/components/schemas/Errors"
           example:
             errors:
@@ -2707,12 +2178,6 @@ components:
         The client SHOULD retry after a short period of time.
       content:
         application/json:
-          schema:
-            $ref: "#/components/schemas/SimpleError"
-          example:
-            title: Service Unavailable
-            status: 503
-        application/vnd.api+json:
           schema:
             $ref: "#/components/schemas/Errors"
           example:
