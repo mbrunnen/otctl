@@ -1148,7 +1148,7 @@ fn actions_submit_no_wait_prints_id() {
     let server = MockServer::start();
     let m = server.mock(|when, then| {
         when.method(POST).path("/api/actions");
-        then.status(201).header("content-type", "application/json").body(
+        then.status(200).header("content-type", "application/json").body(
             r#"{"data":[{"id":"abc","type":"getNetworkDiagnosticTask","attributes":{"status":"pending"}}]}"#,
         );
     });
