@@ -27,15 +27,23 @@ struct ErrorEnvelope {
 
 pub fn parse_api_errors(status: u16, body: &str) -> Error {
     match serde_json::from_str::<ErrorEnvelope>(body) {
-        Ok(env) if !env.errors.is_empty() => Error::Api { status, errors: env.errors },
+        Ok(env) if !env.errors.is_empty() => Error::Api {
+            status,
+            errors: env.errors,
+        },
         _ => Error::Api {
             status,
-            errors: vec![ApiError { title: body.to_string(), detail: None }],
+            errors: vec![ApiError {
+                title: body.to_string(),
+                detail: None,
+            }],
         },
     }
 }
 
-pub fn map_progenitor<E: serde::Serialize + std::fmt::Debug>(e: progenitor_client::Error<E>) -> Error {
+pub fn map_progenitor<E: serde::Serialize + std::fmt::Debug>(
+    e: progenitor_client::Error<E>,
+) -> Error {
     use progenitor_client::Error as Pe;
     match e {
         Pe::CommunicationError(e) => Error::Http(e),

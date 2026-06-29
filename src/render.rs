@@ -53,4 +53,3 @@ mod tests {
         assert!(out.contains("0x4400"));
     }
 }
-

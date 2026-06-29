@@ -37,27 +37,57 @@ impl OtbrClient {
     }
 
     pub async fn node_ext_address(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_ext_address().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_node_ext_address()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn node_network_name(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_network_name().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_node_network_name()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn node_leader_data(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_leader_data().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_node_leader_data()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn node_ext_panid(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_ext_pan_id().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_node_ext_pan_id()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn node_num_of_router(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_num_of_router().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_node_num_of_router()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn node_coprocessor_version(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_coprocessor_version().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_coprocessor_version()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn node_ba_id(&self) -> Result<serde_json::Value> {
@@ -65,17 +95,31 @@ impl OtbrClient {
     }
 
     pub async fn node_info(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_node_information().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_node_information()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn set_node_state(&self, state: &str) -> Result<serde_json::Value> {
-        ok_after(self.inner.set_node_state(state).await.map_err(map_progenitor)?)
+        ok_after(
+            self.inner
+                .set_node_state(state)
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn submit_action(&self, body: serde_json::Value) -> Result<String> {
         let typed: types::ActionsClient =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
-        let resp = self.inner.invoke_action(&typed).await.map_err(map_progenitor)?;
+        let resp = self
+            .inner
+            .invoke_action(&typed)
+            .await
+            .map_err(map_progenitor)?;
         let v = serde_json::to_value(resp.into_inner()).map_err(|e| Error::Parse(e.to_string()))?;
         v["data"][0]["id"]
             .as_str()
@@ -103,45 +147,93 @@ impl OtbrClient {
     }
 
     pub async fn dataset_active(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_active_dataset().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_active_dataset()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn dataset_pending(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_pending_dataset().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_pending_dataset()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn set_dataset_active(&self, body: serde_json::Value) -> Result<serde_json::Value> {
         let typed: types::ActiveDataset =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
-        ok_after(self.inner.set_active_dataset(&typed).await.map_err(map_progenitor)?)
+        ok_after(
+            self.inner
+                .set_active_dataset(&typed)
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn set_dataset_pending(&self, body: serde_json::Value) -> Result<serde_json::Value> {
         let typed: types::PendingDataset =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
-        ok_after(self.inner.set_pending_dataset(&typed).await.map_err(map_progenitor)?)
+        ok_after(
+            self.inner
+                .set_pending_dataset(&typed)
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn commissioner_state(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_commissioner_state().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_commissioner_state()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn set_commissioner_state(&self, state: &str) -> Result<serde_json::Value> {
-        ok_after(self.inner.set_commissioner_state(state).await.map_err(map_progenitor)?)
+        ok_after(
+            self.inner
+                .set_commissioner_state(state)
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn commissioner_joiner(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.get_commissioner_joiner().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_commissioner_joiner()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
-    pub async fn add_commissioner_joiner(&self, body: serde_json::Value) -> Result<serde_json::Value> {
+    pub async fn add_commissioner_joiner(
+        &self,
+        body: serde_json::Value,
+    ) -> Result<serde_json::Value> {
         let typed: types::JoinerData =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
-        ok_after(self.inner.add_commissioner_joiner(&typed).await.map_err(map_progenitor)?)
+        ok_after(
+            self.inner
+                .add_commissioner_joiner(&typed)
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn remove_commissioner_joiner(&self, spec: &str) -> Result<serde_json::Value> {
-        ok_after(self.inner.remove_commissioner_joiner(spec).await.map_err(map_progenitor)?)
+        ok_after(
+            self.inner
+                .remove_commissioner_joiner(spec)
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn actions_list(&self) -> Result<serde_json::Value> {
@@ -169,15 +261,30 @@ impl OtbrClient {
     }
 
     pub async fn diagnostics_list(&self) -> Result<serde_json::Value> {
-        into_value(self.inner.list_diagnostics().await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .list_diagnostics()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn diagnostic_get(&self, id: &str) -> Result<serde_json::Value> {
-        into_value(self.inner.get_diagnostic(id).await.map_err(map_progenitor)?)
+        into_value(
+            self.inner
+                .get_diagnostic(id)
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn diagnostics_delete_all(&self) -> Result<serde_json::Value> {
-        ok_after(self.inner.delete_diagnostics().await.map_err(map_progenitor)?)
+        ok_after(
+            self.inner
+                .delete_diagnostics()
+                .await
+                .map_err(map_progenitor)?,
+        )
     }
 
     pub async fn submit_and_wait(
@@ -190,7 +297,9 @@ impl OtbrClient {
         let deadline = Instant::now() + timeout;
         loop {
             let action = self.get_action(&id).await?;
-            let status = action["data"]["attributes"]["status"].as_str().unwrap_or("");
+            let status = action["data"]["attributes"]["status"]
+                .as_str()
+                .unwrap_or("");
             if matches!(status, "completed" | "stopped" | "failed") {
                 return Ok(action);
             }
@@ -212,7 +321,9 @@ mod tests {
         let server = MockServer::start();
         let m = server.mock(|when, then| {
             when.method(GET).path("/node/state");
-            then.status(200).header("content-type", "application/json").body("\"leader\"");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body("\"leader\"");
         });
         let client = OtbrClient::new(&server.base_url());
         let v = client.node_state().await.unwrap();

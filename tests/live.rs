@@ -10,9 +10,11 @@ fn live_node_state() {
         eprintln!("skipping: OTBR_TEST_URL not set");
         return;
     };
-    Command::cargo_bin("otctl").unwrap()
+    Command::cargo_bin("otctl")
+        .unwrap()
         .args(["--base-url", &url, "node", "state"])
-        .assert().success();
+        .assert()
+        .success();
 }
 
 #[test]
@@ -21,7 +23,10 @@ fn live_dataset_active_json() {
         eprintln!("skipping: OTBR_TEST_URL not set");
         return;
     };
-    Command::cargo_bin("otctl").unwrap()
+    Command::cargo_bin("otctl")
+        .unwrap()
         .args(["--base-url", &url, "--json", "dataset", "active"])
-        .assert().success().stdout(predicates::str::contains("{"));
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("{"));
 }

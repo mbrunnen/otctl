@@ -9,6 +9,8 @@ pub enum ActionsCmd {
         no_wait: bool,
     },
     List,
-    Get { id: String },
+    Get {
+        id: String,
+    },
     DeleteAll,
 }

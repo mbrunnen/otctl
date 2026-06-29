@@ -48,7 +48,10 @@ pub enum Command {
 
 #[derive(Subcommand)]
 pub enum NodeCmd {
-    State { #[arg(long)] set: Option<String> },
+    State {
+        #[arg(long)]
+        set: Option<String>,
+    },
     Rloc,
     Rloc16,
     ExtAddress,
@@ -80,11 +83,15 @@ pub async fn run(cli: Cli) -> Result<String> {
         },
         Command::Dataset { what } => match what {
             node_ext::DatasetCmd::Active { set: Some(f) } => {
-                client.set_dataset_active(node_ext::read_json_input(&f)?).await?
+                client
+                    .set_dataset_active(node_ext::read_json_input(&f)?)
+                    .await?
             }
             node_ext::DatasetCmd::Active { set: None } => client.dataset_active().await?,
             node_ext::DatasetCmd::Pending { set: Some(f) } => {
-                client.set_dataset_pending(node_ext::read_json_input(&f)?).await?
+                client
+                    .set_dataset_pending(node_ext::read_json_input(&f)?)
+                    .await?
             }
             node_ext::DatasetCmd::Pending { set: None } => client.dataset_pending().await?,
         },
@@ -95,7 +102,9 @@ pub async fn run(cli: Cli) -> Result<String> {
             node_ext::CommissionerCmd::State { set: None } => client.commissioner_state().await?,
             node_ext::CommissionerCmd::JoinerList => client.commissioner_joiner().await?,
             node_ext::CommissionerCmd::JoinerAdd { file } => {
-                client.add_commissioner_joiner(node_ext::read_json_input(&file)?).await?
+                client
+                    .add_commissioner_joiner(node_ext::read_json_input(&file)?)
+                    .await?
             }
             node_ext::CommissionerCmd::JoinerRemove { value } => {
                 client.remove_commissioner_joiner(&value).await?

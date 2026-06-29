@@ -11,8 +11,18 @@ fn actions_submit_no_wait_prints_id() {
         );
     });
     let mut cmd = Command::cargo_bin("otctl").unwrap();
-    cmd.args(["--base-url", &server.base_url(), "actions", "submit", "--no-wait", "--file", "-"]);
+    cmd.args([
+        "--base-url",
+        &server.base_url(),
+        "actions",
+        "submit",
+        "--no-wait",
+        "--file",
+        "-",
+    ]);
     cmd.write_stdin(r#"{"data":[]}"#);
-    cmd.assert().success().stdout(predicates::str::contains("abc"));
+    cmd.assert()
+        .success()
+        .stdout(predicates::str::contains("abc"));
     m.assert();
 }
