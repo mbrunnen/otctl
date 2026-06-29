@@ -13,7 +13,7 @@ Command-line interface for the [OpenThread Border Router (OTBR) REST API](https:
 
 ### node
 
-Read or set node properties.
+Read or set node properties. The `reset` subcommand performs a factory reset (DELETE /node); it requires `--yes` or interactive confirmation.
 
 ```
 otctl node state
@@ -28,6 +28,7 @@ otctl node num-of-router
 otctl node coprocessor-version
 otctl node ba-id
 otctl node info
+otctl node reset --yes
 ```
 
 Example:
@@ -81,6 +82,12 @@ Where `joiner.json` contains a `JoinerData` object, e.g.:
 {"eui": "*", "pskd": "J01NME"}
 ```
 
+Pass `-` as the filename to read from stdin:
+
+```sh
+echo '{"eui":"*","pskd":"J01NME"}' | otctl commissioner joiner-add --file -
+```
+
 ### devices
 
 Manage the device table.
@@ -128,7 +135,13 @@ Example:
 
 ```sh
 otctl actions submit --file task.json
-# status: completed
+# field       value
+# id          f47ac10b-58cc-4372-a567-0e02b2c3d479
+# type        getNetworkDiagnosticTask
+# attributes  {"status":"completed"}
+
+otctl actions submit --file task.json --json
+# full JSON action item
 
 otctl actions submit --file task.json --no-wait
 # id: f47ac10b-58cc-4372-a567-0e02b2c3d479
