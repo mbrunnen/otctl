@@ -1,3 +1,5 @@
+pub mod node_ext;
+
 use crate::error::{Error, Result};
 use crate::facade::{OtbrClient, DEFAULT_BASE_URL};
 use crate::render::to_output;
@@ -19,6 +21,14 @@ pub enum Command {
     Node {
         #[command(subcommand)]
         what: NodeCmd,
+    },
+    Dataset {
+        #[command(subcommand)]
+        what: node_ext::DatasetCmd,
+    },
+    Commissioner {
+        #[command(subcommand)]
+        what: node_ext::CommissionerCmd,
     },
 }
 
@@ -53,6 +63,29 @@ pub async fn run(cli: Cli) -> Result<String> {
             NodeCmd::CoprocessorVersion => client.node_coprocessor_version().await?,
             NodeCmd::BaId => client.node_ba_id().await?,
             NodeCmd::Info => client.node_info().await?,
+        },
+        Command::Dataset { what } => match what {
+            node_ext::DatasetCmd::Active { set: Some(f) } => {
+                client.set_dataset_active(node_ext::read_json_input(&f)?).await?
+            }
+            node_ext::DatasetCmd::Active { set: None } => client.dataset_active().await?,
+            node_ext::DatasetCmd::Pending { set: Some(f) } => {
+                client.set_dataset_pending(node_ext::read_json_input(&f)?).await?
+            }
+            node_ext::DatasetCmd::Pending { set: None } => client.dataset_pending().await?,
+        },
+        Command::Commissioner { what } => match what {
+            node_ext::CommissionerCmd::State { set: Some(s) } => {
+                client.set_commissioner_state(&s).await?
+            }
+            node_ext::CommissionerCmd::State { set: None } => client.commissioner_state().await?,
+            node_ext::CommissionerCmd::JoinerList => client.commissioner_joiner().await?,
+            node_ext::CommissionerCmd::JoinerAdd { file } => {
+                client.add_commissioner_joiner(node_ext::read_json_input(&file)?).await?
+            }
+            node_ext::CommissionerCmd::JoinerRemove { value } => {
+                client.remove_commissioner_joiner(&value).await?
+            }
         },
     };
     Ok(to_output(&value, cli.json))

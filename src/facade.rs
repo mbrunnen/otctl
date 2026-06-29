@@ -102,6 +102,48 @@ impl OtbrClient {
             .map_err(|e| Error::Parse(e.to_string()))
     }
 
+    pub async fn dataset_active(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_active_dataset().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn dataset_pending(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_pending_dataset().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn set_dataset_active(&self, body: serde_json::Value) -> Result<serde_json::Value> {
+        let typed: types::ActiveDataset =
+            serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
+        ok_after(self.inner.set_active_dataset(&typed).await.map_err(map_progenitor)?)
+    }
+
+    pub async fn set_dataset_pending(&self, body: serde_json::Value) -> Result<serde_json::Value> {
+        let typed: types::PendingDataset =
+            serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
+        ok_after(self.inner.set_pending_dataset(&typed).await.map_err(map_progenitor)?)
+    }
+
+    pub async fn commissioner_state(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_commissioner_state().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn set_commissioner_state(&self, state: &str) -> Result<serde_json::Value> {
+        ok_after(self.inner.set_commissioner_state(state).await.map_err(map_progenitor)?)
+    }
+
+    pub async fn commissioner_joiner(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_commissioner_joiner().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn add_commissioner_joiner(&self, body: serde_json::Value) -> Result<serde_json::Value> {
+        let typed: types::JoinerData =
+            serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
+        ok_after(self.inner.add_commissioner_joiner(&typed).await.map_err(map_progenitor)?)
+    }
+
+    pub async fn remove_commissioner_joiner(&self, spec: &str) -> Result<serde_json::Value> {
+        ok_after(self.inner.remove_commissioner_joiner(spec).await.map_err(map_progenitor)?)
+    }
+
     pub async fn submit_and_wait(
         &self,
         body: serde_json::Value,
