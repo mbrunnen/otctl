@@ -144,6 +144,14 @@ impl OtbrClient {
         ok_after(self.inner.remove_commissioner_joiner(spec).await.map_err(map_progenitor)?)
     }
 
+    pub async fn actions_list(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.list_actions().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn actions_delete_all(&self) -> Result<serde_json::Value> {
+        ok_after(self.inner.delete_actions().await.map_err(map_progenitor)?)
+    }
+
     pub async fn devices_list(&self) -> Result<serde_json::Value> {
         into_value(self.inner.list_devices().await.map_err(map_progenitor)?)
     }

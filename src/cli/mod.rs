@@ -1,3 +1,4 @@
+pub mod actions;
 pub mod devices;
 pub mod node_ext;
 
@@ -38,6 +39,10 @@ pub enum Command {
     Diagnostics {
         #[command(subcommand)]
         what: devices::DiagnosticsCmd,
+    },
+    Actions {
+        #[command(subcommand)]
+        what: actions::ActionsCmd,
     },
 }
 
@@ -106,6 +111,26 @@ pub async fn run(cli: Cli) -> Result<String> {
             devices::DiagnosticsCmd::List => client.diagnostics_list().await?,
             devices::DiagnosticsCmd::Get { id } => client.diagnostic_get(&id).await?,
             devices::DiagnosticsCmd::DeleteAll => client.diagnostics_delete_all().await?,
+        },
+        Command::Actions { what } => match what {
+            actions::ActionsCmd::Submit { file, no_wait } => {
+                let body = node_ext::read_json_input(&file)?;
+                if no_wait {
+                    let id = client.submit_action(body).await?;
+                    serde_json::json!({ "id": id })
+                } else {
+                    client
+                        .submit_and_wait(
+                            body,
+                            std::time::Duration::from_secs(1),
+                            std::time::Duration::from_secs(60),
+                        )
+                        .await?
+                }
+            }
+            actions::ActionsCmd::List => client.actions_list().await?,
+            actions::ActionsCmd::Get { id } => client.get_action(&id).await?,
+            actions::ActionsCmd::DeleteAll => client.actions_delete_all().await?,
         },
     };
     Ok(to_output(&value, cli.json))
