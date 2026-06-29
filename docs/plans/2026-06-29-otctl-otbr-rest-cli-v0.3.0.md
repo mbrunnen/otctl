@@ -4,9 +4,9 @@
 
 **Goal:** Build `otctl`, a Rust CLI (with a reusable client library underneath) for the OpenThread Border Router REST API v0.3.0.
 
-**Architecture:** A single crate exposes a progenitor-generated typed client (from a vendored, hand-patched OpenAPI spec) wrapped by an ergonomic `OtbrClient` facade. A clap-derive binary `otctl` calls the facade and renders human tables by default or raw JSON with `--json`. The async Actions task queue is handled by a `submit_and_wait` poll helper.
+**Architecture:** A single crate exposes a progenitor-generated typed client (from a vendored, hand-patched OpenAPI spec). An `OtbrClient` facade wraps the generated client and calls its typed methods, normalising results to `serde_json::Value` at its public boundary so rendering stays uniform. A clap-derive binary `otctl` calls the facade and renders human tables by default or raw JSON with `--json`. The async Actions task queue is handled by a `submit_and_wait` poll helper.
 
-**Tech Stack:** Rust (edition 2021), progenitor, reqwest (async), tokio, serde / serde_json, clap (derive), thiserror, comfy-table; dev: httpmock, assert_cmd, predicates.
+**Tech Stack:** Rust (edition 2021), progenitor + progenitor-client, reqwest (async), tokio, serde / serde_json, clap (derive), thiserror, comfy-table; dev: httpmock, assert_cmd, predicates.
 
 ## Global Constraints
 
@@ -14,9 +14,10 @@
 - Crate name `otctl`; library target `otctl` + binary target `otctl` (`src/bin/otctl.rs`).
 - Default base URL `http://127.0.0.1:8081`; override via `--base-url` flag, env fallback `OTBR_URL`.
 - Vendored spec is the source of truth: `openapi/ot-rest.yaml`, forked from upstream `openthread/ot-br-posix` commit `ec16e396382b4559e70a2c6fdeecb7d596a5e915` (Swagger OpenThread REST API v0.3.0).
+- The facade is the only consumer of generated client methods; the CLI depends only on `facade` and `render`. Generated method names are deterministic from `operationId` (snake_cased); where this plan names one, verify it against the discovery step (Task 2, Step 8) and substitute the actual name if progenitor differs.
+- The facade's public methods take and return `serde_json::Value` (or `String`); typed generated request bodies are deserialised from `Value` inside the facade.
 - No inline comments explaining rationale; no emojis anywhere; British English in prose.
 - Files end with a trailing newline.
-- The CLI depends only on the `facade` and `render` modules, never on generated client method names directly (insulates the CLI from codegen churn).
 - Live-network integration tests run only when `OTBR_TEST_URL` is set; otherwise skipped.
 
 ---
@@ -27,12 +28,13 @@
 - Create: `Cargo.toml`
 - Create: `src/lib.rs`
 - Create: `src/bin/otctl.rs`
+- Create: `src/error.rs` (stub)
 - Create: `openapi/ot-rest.yaml` (vendored upstream spec, unpatched in this task)
 - Create: `docs/spec-sync.md`
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: a compiling crate with empty `lib.rs` and a `main` that prints nothing useful yet.
+- Produces: a compiling crate with an empty `error` module and a `main` that prints a placeholder.
 
 - [ ] **Step 1: Create `Cargo.toml`**
 
@@ -59,6 +61,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
 progenitor = "0.8"
+progenitor-client = "0.8"
 comfy-table = "7"
 
 [dev-dependencies]
@@ -67,15 +70,19 @@ assert_cmd = "2"
 predicates = "3"
 ```
 
-- [ ] **Step 2: Create stub `src/lib.rs`**
+- [ ] **Step 2: Create stub `src/error.rs`**
+
+```rust
+pub struct Placeholder;
+```
+
+- [ ] **Step 3: Create `src/lib.rs`**
 
 ```rust
 pub mod error;
 ```
 
-Create an empty `src/error.rs` with `pub struct Placeholder;` so the module resolves; it is replaced in Task 3.
-
-- [ ] **Step 3: Create stub `src/bin/otctl.rs`**
+- [ ] **Step 4: Create stub `src/bin/otctl.rs`**
 
 ```rust
 fn main() {
@@ -83,7 +90,7 @@ fn main() {
 }
 ```
 
-- [ ] **Step 4: Vendor the upstream spec**
+- [ ] **Step 5: Vendor the upstream spec**
 
 Download `src/rest/openapi.yaml` from upstream commit `ec16e396382b4559e70a2c6fdeecb7d596a5e915` into `openapi/ot-rest.yaml` verbatim. Prepend a single YAML comment line at the very top:
 
@@ -91,7 +98,7 @@ Download `src/rest/openapi.yaml` from upstream commit `ec16e396382b4559e70a2c6fd
 # Vendored from openthread/ot-br-posix@ec16e396382b4559e70a2c6fdeecb7d596a5e915 (src/rest/openapi.yaml). Hand-patched for progenitor; see docs/spec-sync.md.
 ```
 
-- [ ] **Step 5: Create `docs/spec-sync.md`**
+- [ ] **Step 6: Create `docs/spec-sync.md`**
 
 ```markdown
 # Spec sync
@@ -108,21 +115,23 @@ Download `src/rest/openapi.yaml` from upstream commit `ec16e396382b4559e70a2c6fd
 2. Added `operationId` to the 22 `/node/*` operations.
 3. `anyOf`-of-`$ref` unions changed to `oneOf` so progenitor emits enums.
 4. Removed the `SparseFieldset` (`deepObject`) query parameter and its references.
+5. Removed the secondary `DatasetTlv` request body from the dataset PUTs (v1 sets datasets via the JSON form only).
+6. Removed `format: uuid` from the Actions id field so it generates as a plain `String` (avoids a uuid dependency).
 
 ## Re-sync procedure
 
 1. Fetch the new upstream `openapi.yaml`.
-2. Re-apply the four patches above.
+2. Re-apply the patches above.
 3. Run `cargo build` and fix any new progenitor incompatibilities.
 4. Update the commit SHA in this file and in the spec header comment.
 ```
 
-- [ ] **Step 6: Verify the crate builds**
+- [ ] **Step 7: Verify the crate builds**
 
 Run: `cargo build`
-Expected: compiles successfully (warnings about unused `Placeholder` are acceptable).
+Expected: compiles successfully (warning about unused `Placeholder` is acceptable).
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add Cargo.toml src openapi docs/spec-sync.md
@@ -140,15 +149,15 @@ git commit -m "Scaffold otctl crate and vendor OTBR REST spec"
 
 **Interfaces:**
 - Consumes: vendored spec from Task 1.
-- Produces: module `otctl::generated` containing a progenitor `Client` type with one async method per `operationId`. Method names are discovered, not assumed; the facade (Task 4) is the only consumer.
+- Produces: module `otctl::generated` with a `Client` (from `progenitor::generate_api!`) exposing one async builder method per `operationId`, and generated request/response types under `otctl::generated::types`.
 
 - [ ] **Step 1: Rewrite the JSON:API content type**
 
-In `openapi/ot-rest.yaml`, replace every occurrence of `application/vnd.api+json:` with `application/json:`. There are no mixed objects under a single content map that would collide, so a global replace is safe.
+In `openapi/ot-rest.yaml`, replace every occurrence of `application/vnd.api+json:` with `application/json:`.
 
 - [ ] **Step 2: Add `operationId` to the 22 `/node/*` operations**
 
-Add these exact `operationId` values (one per operation) under each method:
+Add these exact `operationId` values under each method:
 
 ```
 GET    /node                       -> getNode
@@ -177,21 +186,27 @@ GET    /node/coprocessor/version   -> getCoprocessorVersion
 
 - [ ] **Step 3: Convert `anyOf`-of-refs unions to `oneOf`**
 
-In these five schemas, change the key `anyOf:` to `oneOf:` (the lists of `$ref` items are unchanged): `Actions_getNetworkDiagnosticTask`, `Actions_resetNetworkDiagCounterTask`, `ActionsClient` (under `data.items`), `ActionsCollection`, `ActionItem` (under `data`).
+Change the key `anyOf:` to `oneOf:` (item lists unchanged) in: `Actions_getNetworkDiagnosticTask`, `Actions_resetNetworkDiagCounterTask`, `ActionsClient` (under `data.items`), `ActionsCollection`, `ActionItem` (under `data`).
 
 - [ ] **Step 4: Remove the `deepObject` sparse-fieldset parameter**
 
-In `components.parameters`, delete the `SparseFieldset` parameter definition. Remove every `- $ref: "#/components/parameters/SparseFieldset"` line from operation `parameters` lists. Leave `AcceptJsonApi` intact.
+Delete the `SparseFieldset` parameter from `components.parameters`. Remove every `- $ref: "#/components/parameters/SparseFieldset"` line from operation `parameters` lists. Leave `AcceptJsonApi` intact.
 
-- [ ] **Step 5: Verify the patched spec still parses as YAML**
+- [ ] **Step 5: Trim multi-body and uuid wrinkles**
 
-Run: `python3 -c "import yaml,sys; yaml.safe_load(open('openapi/ot-rest.yaml')); print('ok')"`
+- In `PUT /node/dataset/active` and `PUT /node/dataset/pending` request bodies, keep only the `application/json` content (schemas `ActiveDataset` / `PendingDataset`); delete the other media-type entry whose schema is `DatasetTlv`.
+- In schema `ActionsServer` (and any other place the Actions `id` is declared), remove the `format: uuid` line so `id` is a plain `string`.
+
+- [ ] **Step 6: Verify the patched spec still parses as YAML**
+
+Run: `python3 -c "import yaml; yaml.safe_load(open('openapi/ot-rest.yaml')); print('ok')"`
 Expected: prints `ok`.
 
-- [ ] **Step 6: Wire progenitor codegen in `src/generated.rs`**
+- [ ] **Step 7: Wire progenitor codegen in `src/generated.rs`**
 
 ```rust
 #![allow(clippy::all)]
+#![allow(dead_code)]
 progenitor::generate_api!("openapi/ot-rest.yaml");
 ```
 
@@ -202,16 +217,14 @@ pub mod error;
 pub mod generated;
 ```
 
-- [ ] **Step 7: Build to generate and compile the client**
+- [ ] **Step 8: Build, then record the generated method and type names**
 
 Run: `cargo build`
-Expected: compiles. If progenitor rejects a remaining `oneOf`/`anyOf` body, capture the failing schema name from the error and hand-model only that request type as a plain `serde` struct in `src/generated.rs` (above the macro), per the spec's "Open risk" section.
+Expected: compiles. If progenitor rejects a remaining `oneOf` body, capture the failing schema name and hand-model only that request type as a plain `serde` struct above the macro in `src/generated.rs`, then rebuild.
 
-- [ ] **Step 8: Record the discovered client method names**
-
-Run: `cargo doc --no-deps` then inspect `target/doc/otctl/generated/struct.Client.html`, or run `cargo expand generated 2>/dev/null | grep "pub async fn"`.
-Record the actual generated method names in a scratch note; Task 4 needs them.
-Expected: methods named after the `operationId`s (e.g. `get_node_state`, `set_node_state`).
+Then discover the real names:
+Run: `cargo doc --no-deps` and open `target/doc/otctl/generated/struct.Client.html` (and `.../generated/types/index.html`).
+Record: the builder method names (expected snake_case of the operationIds, e.g. `get_node_state`, `set_active_dataset`, `invoke_action`, `get_action`, `list_devices`, `get_device`), the path-param setter names (expected `action_id`, `device_id`, `diagnostics_id`), and the body type names (expected `types::ActionsClient`, `types::ActiveDataset`, `types::PendingDataset`, `types::JoinerData`). Later tasks assume these; substitute the actual names where they differ.
 
 - [ ] **Step 9: Commit**
 
@@ -222,19 +235,20 @@ git commit -m "Patch vendored spec for progenitor and generate typed client"
 
 ---
 
-### Task 3: Error type and JSON:API error parsing
+### Task 3: Error type, API-error parsing, and progenitor error mapping
 
 **Files:**
 - Modify: `src/error.rs`
 - Test: inline `#[cfg(test)]` in `src/error.rs`
 
 **Interfaces:**
-- Consumes: nothing.
+- Consumes: `generated` (for the `progenitor_client::Error` mapping).
 - Produces:
   - `pub enum Error { Http(reqwest::Error), Api { status: u16, errors: Vec<ApiError> }, Timeout, Parse(String) }`
   - `pub struct ApiError { pub title: String, pub detail: Option<String> }`
   - `pub type Result<T> = std::result::Result<T, Error>;`
-  - `pub fn parse_api_errors(status: u16, body: &str) -> Error` — parses a JSON:API `{"errors":[{"title","detail"}]}` body; falls back to `Error::Api` with a single synthetic `ApiError { title: body, detail: None }` when the body is not the expected shape.
+  - `pub fn parse_api_errors(status: u16, body: &str) -> Error`
+  - `pub fn map_progenitor<E: serde::Serialize>(e: progenitor_client::Error<E>) -> Error`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -246,11 +260,9 @@ mod tests {
     #[test]
     fn parses_jsonapi_error_body() {
         let body = r#"{"errors":[{"title":"Bad Request","detail":"bad channel"}]}"#;
-        let err = parse_api_errors(400, body);
-        match err {
+        match parse_api_errors(400, body) {
             Error::Api { status, errors } => {
                 assert_eq!(status, 400);
-                assert_eq!(errors.len(), 1);
                 assert_eq!(errors[0].title, "Bad Request");
                 assert_eq!(errors[0].detail.as_deref(), Some("bad channel"));
             }
@@ -260,8 +272,7 @@ mod tests {
 
     #[test]
     fn falls_back_on_non_jsonapi_body() {
-        let err = parse_api_errors(500, "internal failure");
-        match err {
+        match parse_api_errors(500, "internal failure") {
             Error::Api { status, errors } => {
                 assert_eq!(status, 500);
                 assert_eq!(errors[0].title, "internal failure");
@@ -275,7 +286,7 @@ mod tests {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cargo test --lib error::`
-Expected: FAIL (function/types not defined).
+Expected: FAIL (types/functions not defined).
 
 - [ ] **Step 3: Write the implementation**
 
@@ -291,7 +302,7 @@ pub struct ApiError {
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("transport error: {0}")]
-    Http(#[from] reqwest::Error),
+    Http(reqwest::Error),
     #[error("API error ({status}): {}", .errors.first().map(|e| e.title.clone()).unwrap_or_default())]
     Api { status: u16, errors: Vec<ApiError> },
     #[error("timed out waiting for action to complete")]
@@ -309,38 +320,45 @@ struct ErrorEnvelope {
 
 pub fn parse_api_errors(status: u16, body: &str) -> Error {
     match serde_json::from_str::<ErrorEnvelope>(body) {
-        Ok(env) if !env.errors.is_empty() => Error::Api {
-            status,
-            errors: env.errors,
-        },
+        Ok(env) if !env.errors.is_empty() => Error::Api { status, errors: env.errors },
         _ => Error::Api {
             status,
-            errors: vec![ApiError {
-                title: body.to_string(),
-                detail: None,
-            }],
+            errors: vec![ApiError { title: body.to_string(), detail: None }],
         },
+    }
+}
+
+pub fn map_progenitor<E: serde::Serialize>(e: progenitor_client::Error<E>) -> Error {
+    use progenitor_client::Error as Pe;
+    match e {
+        Pe::CommunicationError(e) => Error::Http(e),
+        Pe::ErrorResponse(rv) => {
+            let status = rv.status().as_u16();
+            let body = serde_json::to_string(rv.as_ref()).unwrap_or_default();
+            parse_api_errors(status, &body)
+        }
+        other => Error::Parse(other.to_string()),
     }
 }
 ```
 
-Delete the `Placeholder` stub.
+Delete the `Placeholder` stub. If the discovery in Task 2 showed a different `progenitor_client::Error` variant shape, adjust the `match`; the `other => Error::Parse(...)` arm keeps it total.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cargo test --lib error::`
-Expected: PASS (both tests).
+Expected: PASS (both).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/error.rs
-git commit -m "Add Error type and JSON:API error parsing"
+git commit -m "Add Error type, API-error parsing, and progenitor error mapping"
 ```
 
 ---
 
-### Task 4: OtbrClient facade — construction and a read method
+### Task 4: OtbrClient facade — construction and node_state
 
 **Files:**
 - Create: `src/facade.rs`
@@ -348,12 +366,13 @@ git commit -m "Add Error type and JSON:API error parsing"
 - Test: inline `#[cfg(test)]` in `src/facade.rs`
 
 **Interfaces:**
-- Consumes: `generated::Client`, `error::{Error, Result}`.
+- Consumes: `generated::Client`, `error::{map_progenitor, Error, Result}`.
 - Produces:
-  - `pub struct OtbrClient` wrapping `generated::Client` and the base URL.
+  - `pub struct OtbrClient { inner: generated::Client }`
   - `pub const DEFAULT_BASE_URL: &str = "http://127.0.0.1:8081";`
   - `pub fn new(base_url: &str) -> OtbrClient`
-  - `pub async fn node_state(&self) -> Result<serde_json::Value>` — returns the parsed `/node/state` body as JSON (facade methods return `serde_json::Value` so the CLI renders uniformly without depending on generated types).
+  - `pub async fn node_state(&self) -> Result<serde_json::Value>`
+  - private `fn into_value<T: serde::Serialize>(r: progenitor_client::ResponseValue<T>) -> Result<serde_json::Value>`
 
 - [ ] **Step 1: Write the failing test (httpmock-backed)**
 
@@ -368,9 +387,7 @@ mod tests {
         let server = MockServer::start();
         let m = server.mock(|when, then| {
             when.method(GET).path("/node/state");
-            then.status(200)
-                .header("content-type", "application/json")
-                .body("\"leader\"");
+            then.status(200).header("content-type", "application/json").body("\"leader\"");
         });
         let client = OtbrClient::new(&server.base_url());
         let v = client.node_state().await.unwrap();
@@ -388,44 +405,34 @@ Expected: FAIL (module not found).
 - [ ] **Step 3: Write the implementation**
 
 ```rust
-use crate::error::{parse_api_errors, Error, Result};
+use crate::error::{map_progenitor, Error, Result};
+use crate::generated::Client;
+use progenitor_client::ResponseValue;
 
 pub const DEFAULT_BASE_URL: &str = "http://127.0.0.1:8081";
 
 pub struct OtbrClient {
-    base_url: String,
-    http: reqwest::Client,
+    inner: Client,
+}
+
+fn into_value<T: serde::Serialize>(r: ResponseValue<T>) -> Result<serde_json::Value> {
+    serde_json::to_value(r.into_inner()).map_err(|e| Error::Parse(e.to_string()))
 }
 
 impl OtbrClient {
     pub fn new(base_url: &str) -> Self {
         Self {
-            base_url: base_url.trim_end_matches('/').to_string(),
-            http: reqwest::Client::new(),
+            inner: Client::new(base_url.trim_end_matches('/')),
         }
-    }
-
-    async fn get_json(&self, path: &str) -> Result<serde_json::Value> {
-        let resp = self
-            .http
-            .get(format!("{}{}", self.base_url, path))
-            .send()
-            .await?;
-        let status = resp.status().as_u16();
-        let text = resp.text().await?;
-        if !(200..300).contains(&status) {
-            return Err(parse_api_errors(status, &text));
-        }
-        serde_json::from_str(&text).map_err(|e| Error::Parse(e.to_string()))
     }
 
     pub async fn node_state(&self) -> Result<serde_json::Value> {
-        self.get_json("/node/state").await
+        into_value(self.inner.get_node_state().send().await.map_err(map_progenitor)?)
     }
 }
 ```
 
-Note for the implementer: the facade calls endpoints through this small `reqwest` helper rather than the generated client for flat `/node/*` reads, because their response bodies are bare scalars/objects best handled as `serde_json::Value`. The generated client is used in Tasks for typed request bodies (datasets, joiners, actions). Add `pub mod facade;` to `src/lib.rs`.
+Add `pub mod facade;` to `src/lib.rs`. If `get_node_state` is not the generated name (per Task 2 discovery), substitute the actual one.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -436,7 +443,7 @@ Expected: PASS.
 
 ```bash
 git add src/facade.rs src/lib.rs
-git commit -m "Add OtbrClient facade with node_state read"
+git commit -m "Add OtbrClient facade over generated client with node_state"
 ```
 
 ---
@@ -448,11 +455,11 @@ git commit -m "Add OtbrClient facade with node_state read"
 - Test: inline `#[cfg(test)]` in `src/facade.rs`
 
 **Interfaces:**
-- Consumes: `OtbrClient`, `error::{Error, Result}`.
+- Consumes: `OtbrClient`, generated `invoke_action` / `get_action`, `into_value`, `error::{Error, Result, map_progenitor}`, `generated::types::ActionsClient`.
 - Produces:
-  - `pub async fn submit_action(&self, body: serde_json::Value) -> Result<String>` — POST `/api/actions`, returns the new action `id`.
-  - `pub async fn get_action(&self, id: &str) -> Result<serde_json::Value>` — GET `/api/actions/{id}`.
-  - `pub async fn submit_and_wait(&self, body: serde_json::Value, poll: std::time::Duration, timeout: std::time::Duration) -> Result<serde_json::Value>` — submit, then poll `get_action` until `data.attributes.status` is terminal (`completed`, `stopped`, `failed`) or `timeout` elapses (`Error::Timeout`).
+  - `pub async fn submit_action(&self, body: serde_json::Value) -> Result<String>` — deserialise `body` into `types::ActionsClient`, POST via `invoke_action`, return `data[0].id`.
+  - `pub async fn get_action(&self, id: &str) -> Result<serde_json::Value>`
+  - `pub async fn submit_and_wait(&self, body: serde_json::Value, poll: Duration, timeout: Duration) -> Result<serde_json::Value>` — submit then poll `get_action` until `data.attributes.status` is `completed`/`stopped`/`failed`, else `Error::Timeout`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -496,26 +503,15 @@ Expected: FAIL (method not defined).
 - [ ] **Step 3: Write the implementation**
 
 ```rust
+use crate::generated::types;
 use std::time::{Duration, Instant};
 
 impl OtbrClient {
-    async fn post_json(&self, path: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
-        let resp = self
-            .http
-            .post(format!("{}{}", self.base_url, path))
-            .json(body)
-            .send()
-            .await?;
-        let status = resp.status().as_u16();
-        let text = resp.text().await?;
-        if !(200..300).contains(&status) {
-            return Err(parse_api_errors(status, &text));
-        }
-        serde_json::from_str(&text).map_err(|e| Error::Parse(e.to_string()))
-    }
-
     pub async fn submit_action(&self, body: serde_json::Value) -> Result<String> {
-        let v = self.post_json("/api/actions", &body).await?;
+        let typed: types::ActionsClient =
+            serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
+        let resp = self.inner.invoke_action().body(typed).send().await.map_err(map_progenitor)?;
+        let v = serde_json::to_value(resp.into_inner()).map_err(|e| Error::Parse(e.to_string()))?;
         v["data"][0]["id"]
             .as_str()
             .map(|s| s.to_string())
@@ -523,7 +519,7 @@ impl OtbrClient {
     }
 
     pub async fn get_action(&self, id: &str) -> Result<serde_json::Value> {
-        self.get_json(&format!("/api/actions/{id}")).await
+        into_value(self.inner.get_action().action_id(id).send().await.map_err(map_progenitor)?)
     }
 
     pub async fn submit_and_wait(
@@ -549,6 +545,8 @@ impl OtbrClient {
 }
 ```
 
+If `body(typed)` does not type-check because the generated builder expects a borrowed or differently-named body, adjust per the Task 2 discovery (e.g. `.body(&typed)`); the `types::ActionsClient` deserialise step is unchanged.
+
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cargo test --lib facade::`
@@ -572,8 +570,7 @@ git commit -m "Add Actions submit/get and submit_and_wait poll helper"
 
 **Interfaces:**
 - Consumes: `serde_json::Value`.
-- Produces:
-  - `pub fn to_output(value: &serde_json::Value, json: bool) -> String` — when `json` is true, pretty JSON; otherwise a human key/value or table rendering.
+- Produces: `pub fn to_output(value: &serde_json::Value, json: bool) -> String`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -585,14 +582,12 @@ mod tests {
     #[test]
     fn json_flag_emits_pretty_json() {
         let v = serde_json::json!({"state":"leader"});
-        let out = to_output(&v, true);
-        assert!(out.contains("\"state\": \"leader\""));
+        assert!(to_output(&v, true).contains("\"state\": \"leader\""));
     }
 
     #[test]
     fn scalar_renders_bare() {
-        let v = serde_json::json!("leader");
-        assert_eq!(to_output(&v, false), "leader");
+        assert_eq!(to_output(&serde_json::json!("leader"), false), "leader");
     }
 
     #[test]
@@ -633,11 +628,7 @@ pub fn to_output(value: &Value, json: bool) -> String {
             }
             table.to_string()
         }
-        Value::Array(items) => items
-            .iter()
-            .map(|v| scalarise(v))
-            .collect::<Vec<_>>()
-            .join("\n"),
+        Value::Array(items) => items.iter().map(scalarise).collect::<Vec<_>>().join("\n"),
     }
 }
 
@@ -675,11 +666,11 @@ git commit -m "Add render module for tables and --json output"
 - Test: `tests/cli_smoke.rs`
 
 **Interfaces:**
-- Consumes: `facade::{OtbrClient, DEFAULT_BASE_URL}`, `render`.
+- Consumes: `facade::{OtbrClient, DEFAULT_BASE_URL}`, `render::to_output`, `error::{Error, Result}`.
 - Produces:
-  - `pub struct Cli` (clap `Parser`) with `--base-url` (env `OTBR_URL`, default `DEFAULT_BASE_URL`), `--json`, and a `Command` subcommand enum (only `Node` populated here; others added in later tasks).
-  - `pub async fn run(cli: Cli) -> error::Result<()>`.
-  - `pub fn print_and_exit(result: error::Result<String>) -> !` helper mapping errors to exit codes (1 generic, 3 API error, 4 timeout).
+  - `pub struct Cli` (clap `Parser`) with `--base-url` (env `OTBR_URL`, default `DEFAULT_BASE_URL`, global), `--json` (global), and a `Command` subcommand enum (only `Node { State }` here).
+  - `pub async fn run(cli: Cli) -> Result<String>`
+  - `pub fn exit_code(err: &Error) -> i32` (1 generic, 3 API error, 4 timeout).
 
 - [ ] **Step 1: Write the failing smoke test**
 
@@ -697,7 +688,7 @@ fn prints_help() {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cargo test --test cli_smoke`
-Expected: FAIL (no `--base-url` in help / no subcommands).
+Expected: FAIL.
 
 - [ ] **Step 3: Write `src/cli/mod.rs`**
 
@@ -793,8 +784,8 @@ git commit -m "Add clap CLI scaffold with global flags and node state dispatch"
 - Test: `tests/cli_node.rs`
 
 **Interfaces:**
-- Consumes: `OtbrClient::get_json`.
-- Produces facade methods (all `async fn(&self) -> Result<serde_json::Value>` unless noted): `node_rloc`, `node_rloc16`, `node_ext_address`, `node_network_name`, `node_leader_data`, `node_ext_panid`, `node_num_of_router`, `node_coprocessor_version`, `node_ba_id`, `node_info` (GET `/api/node`), and `set_node_state(&self, state: &str) -> Result<serde_json::Value>` (PUT `/node/state`). Extends `NodeCmd` with the matching subcommands.
+- Consumes: generated client builder methods (per Task 2 discovery), `into_value`, `map_progenitor`.
+- Produces facade methods (all `async fn(&self) -> Result<serde_json::Value>` unless noted): `node_rloc`, `node_rloc16`, `node_ext_address`, `node_network_name`, `node_leader_data`, `node_ext_panid`, `node_num_of_router`, `node_coprocessor_version`, `node_ba_id`, `node_info`, and `set_node_state(&self, state: &str)`. Extends `NodeCmd` with matching subcommands.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -807,11 +798,11 @@ fn node_rloc16_reads_endpoint() {
     let server = MockServer::start();
     let m = server.mock(|when, then| {
         when.method(GET).path("/node/rloc16");
-        then.status(200).header("content-type", "application/json").body("\"0x4400\"");
+        then.status(200).header("content-type", "application/json").body("17408");
     });
     let mut cmd = Command::cargo_bin("otctl").unwrap();
     cmd.args(["--base-url", &server.base_url(), "node", "rloc16"]);
-    cmd.assert().success().stdout(predicates::str::contains("0x4400"));
+    cmd.assert().success().stdout(predicates::str::contains("17408"));
     m.assert();
 }
 ```
@@ -825,24 +816,45 @@ Expected: FAIL (no `rloc16` subcommand).
 
 ```rust
 impl OtbrClient {
-    pub async fn node_rloc(&self) -> Result<serde_json::Value> { self.get_json("/node/rloc").await }
-    pub async fn node_rloc16(&self) -> Result<serde_json::Value> { self.get_json("/node/rloc16").await }
-    pub async fn node_ext_address(&self) -> Result<serde_json::Value> { self.get_json("/node/ext-address").await }
-    pub async fn node_network_name(&self) -> Result<serde_json::Value> { self.get_json("/node/network-name").await }
-    pub async fn node_leader_data(&self) -> Result<serde_json::Value> { self.get_json("/node/leader-data").await }
-    pub async fn node_ext_panid(&self) -> Result<serde_json::Value> { self.get_json("/node/ext-panid").await }
-    pub async fn node_num_of_router(&self) -> Result<serde_json::Value> { self.get_json("/node/num-of-router").await }
-    pub async fn node_coprocessor_version(&self) -> Result<serde_json::Value> { self.get_json("/node/coprocessor/version").await }
-    pub async fn node_ba_id(&self) -> Result<serde_json::Value> { self.get_json("/node/ba-id").await }
-    pub async fn node_info(&self) -> Result<serde_json::Value> { self.get_json("/api/node").await }
-
+    pub async fn node_rloc(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_rloc().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn node_rloc16(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_rloc16().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn node_ext_address(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_ext_address().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn node_network_name(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_network_name().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn node_leader_data(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_leader_data().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn node_ext_panid(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_ext_pan_id().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn node_num_of_router(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_num_of_router().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn node_coprocessor_version(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_coprocessor_version().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn node_ba_id(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_ba_id().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn node_info(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_information().send().await.map_err(map_progenitor)?)
+    }
     pub async fn set_node_state(&self, state: &str) -> Result<serde_json::Value> {
-        self.put_json("/node/state", &serde_json::json!(state)).await
+        into_value(
+            self.inner.set_node_state().body(state.to_string()).send().await.map_err(map_progenitor)?,
+        )
     }
 }
 ```
 
-Add a `put_json` helper mirroring `post_json` but using `self.http.put`. If the PUT response body is empty, return `serde_json::json!({"ok": true})` instead of failing to parse.
+If `get_node_information` requires the `AcceptJsonApi` header (the generated builder exposes a required setter), pass `.accept("application/json")` per the Task 2 discovery. If a builder name differs, substitute it.
 
 - [ ] **Step 4: Extend `NodeCmd` and dispatch**
 
@@ -863,7 +875,7 @@ pub enum NodeCmd {
 }
 ```
 
-In `run`, match each arm to the matching facade method; for `State { set }`, call `set_node_state` when `set` is `Some`, else `node_state`.
+In `run`, match each arm to the matching facade method; for `State { set }`, call `set_node_state(&s)` when `set` is `Some(s)`, else `node_state`.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -884,12 +896,12 @@ git commit -m "Add node info and state commands"
 **Files:**
 - Modify: `src/facade.rs`
 - Modify: `src/cli/mod.rs`
-- Create: `src/cli/node_ext.rs` (dataset + commissioner subcommand enums and dispatch helpers, to keep `mod.rs` focused)
+- Create: `src/cli/node_ext.rs`
 - Test: `tests/cli_dataset.rs`
 
 **Interfaces:**
-- Consumes: `get_json`, `put_json`, `post_json`.
-- Produces facade methods: `dataset_active`, `dataset_pending` (GET), `set_dataset_active(body)`, `set_dataset_pending(body)` (PUT, accept `serde_json::Value`), `commissioner_state` (GET), `set_commissioner_state(state)` (PUT), `commissioner_joiner` (GET), `add_commissioner_joiner(body)` (POST), `remove_commissioner_joiner(body)` (DELETE with JSON body). Adds `Command::Dataset` and `Command::Commissioner` with subcommands; `--set <FILE|->` reads a JSON file or stdin (`-`).
+- Consumes: generated client builders + `types::{ActiveDataset, PendingDataset, JoinerData}`.
+- Produces facade methods: `dataset_active`, `dataset_pending` (GET); `set_dataset_active(body: Value)`, `set_dataset_pending(body: Value)` (deserialise into the typed dataset, PUT); `commissioner_state` (GET); `set_commissioner_state(state: &str)` (PUT string); `commissioner_joiner` (GET); `add_commissioner_joiner(body: Value)` (deserialise into `types::JoinerData`, POST); `remove_commissioner_joiner(spec: &str)` (DELETE string body). Adds `Command::Dataset` and `Command::Commissioner`; `--set <FILE|->` reads JSON from a file or stdin.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -915,25 +927,51 @@ fn dataset_active_reads_endpoint() {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cargo test --test cli_dataset`
-Expected: FAIL (no `dataset` command).
+Expected: FAIL.
 
 - [ ] **Step 3: Add facade methods**
 
 ```rust
 impl OtbrClient {
-    pub async fn dataset_active(&self) -> Result<serde_json::Value> { self.get_json("/node/dataset/active").await }
-    pub async fn dataset_pending(&self) -> Result<serde_json::Value> { self.get_json("/node/dataset/pending").await }
-    pub async fn set_dataset_active(&self, body: serde_json::Value) -> Result<serde_json::Value> { self.put_json("/node/dataset/active", &body).await }
-    pub async fn set_dataset_pending(&self, body: serde_json::Value) -> Result<serde_json::Value> { self.put_json("/node/dataset/pending", &body).await }
-    pub async fn commissioner_state(&self) -> Result<serde_json::Value> { self.get_json("/node/commissioner/state").await }
-    pub async fn set_commissioner_state(&self, state: &str) -> Result<serde_json::Value> { self.put_json("/node/commissioner/state", &serde_json::json!(state)).await }
-    pub async fn commissioner_joiner(&self) -> Result<serde_json::Value> { self.get_json("/node/commissioner/joiner").await }
-    pub async fn add_commissioner_joiner(&self, body: serde_json::Value) -> Result<serde_json::Value> { self.post_json("/node/commissioner/joiner", &body).await }
-    pub async fn remove_commissioner_joiner(&self, body: serde_json::Value) -> Result<serde_json::Value> { self.delete_json("/node/commissioner/joiner", Some(&body)).await }
+    pub async fn dataset_active(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_active_dataset().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn dataset_pending(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_pending_dataset().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn set_dataset_active(&self, body: serde_json::Value) -> Result<serde_json::Value> {
+        let typed: types::ActiveDataset =
+            serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
+        into_value(self.inner.set_active_dataset().body(typed).send().await.map_err(map_progenitor)?)
+    }
+    pub async fn set_dataset_pending(&self, body: serde_json::Value) -> Result<serde_json::Value> {
+        let typed: types::PendingDataset =
+            serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
+        into_value(self.inner.set_pending_dataset().body(typed).send().await.map_err(map_progenitor)?)
+    }
+    pub async fn commissioner_state(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_commissioner_state().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn set_commissioner_state(&self, state: &str) -> Result<serde_json::Value> {
+        into_value(
+            self.inner.set_commissioner_state().body(state.to_string()).send().await.map_err(map_progenitor)?,
+        )
+    }
+    pub async fn commissioner_joiner(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_commissioner_joiner().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn add_commissioner_joiner(&self, body: serde_json::Value) -> Result<serde_json::Value> {
+        let typed: types::JoinerData =
+            serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
+        into_value(self.inner.add_commissioner_joiner().body(typed).send().await.map_err(map_progenitor)?)
+    }
+    pub async fn remove_commissioner_joiner(&self, spec: &str) -> Result<serde_json::Value> {
+        into_value(
+            self.inner.remove_commissioner_joiner().body(spec.to_string()).send().await.map_err(map_progenitor)?,
+        )
+    }
 }
 ```
-
-Add a `delete_json(&self, path, body: Option<&Value>)` helper following the `post_json` pattern with `self.http.delete`, attaching the JSON body when present, returning `json!({"ok": true})` on empty 2xx bodies.
 
 - [ ] **Step 4: Add subcommands in `src/cli/node_ext.rs` and wire into `Command`**
 
@@ -951,7 +989,7 @@ pub enum CommissionerCmd {
     State { #[arg(long)] set: Option<String> },
     JoinerList,
     JoinerAdd { #[arg(long)] file: String },
-    JoinerRemove { #[arg(long)] file: String },
+    JoinerRemove { value: String },
 }
 
 pub fn read_json_input(spec: &str) -> crate::error::Result<serde_json::Value> {
@@ -967,7 +1005,7 @@ pub fn read_json_input(spec: &str) -> crate::error::Result<serde_json::Value> {
 }
 ```
 
-Add `mod node_ext;` to `src/cli/mod.rs`, add `Dataset { #[command(subcommand)] what: node_ext::DatasetCmd }` and `Commissioner { #[command(subcommand)] what: node_ext::CommissionerCmd }` to `Command`, and dispatch each arm. For `--set <FILE|->` arms, call `read_json_input` then the matching `set_*` method.
+Add `mod node_ext;` to `src/cli/mod.rs`; add `Dataset { #[command(subcommand)] what: node_ext::DatasetCmd }` and `Commissioner { #[command(subcommand)] what: node_ext::CommissionerCmd }` to `Command`. Dispatch: dataset/commissioner `--set` arms call `read_json_input` then the typed `set_*`; `State { set }` for commissioner calls `set_commissioner_state(&s)` (the body is a bare string, passed directly, not JSON-parsed); `JoinerRemove { value }` passes `value` to `remove_commissioner_joiner`.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -992,8 +1030,8 @@ git commit -m "Add dataset and commissioner commands"
 - Test: `tests/cli_devices.rs`
 
 **Interfaces:**
-- Consumes: `get_json`, `delete_json`.
-- Produces facade methods: `devices_list` (GET `/api/devices`), `device_get(id)` (GET `/api/devices/{id}`), `device_delete(id)` (DELETE `/api/devices/{id}`), `devices_delete_all` (DELETE `/api/devices`), `diagnostics_list` (GET `/api/diagnostics`), `diagnostic_get(id)`, `diagnostics_delete_all`. Adds `Command::Devices` and `Command::Diagnostics`.
+- Consumes: generated builders `list_devices`, `get_device`, `delete_device`, `delete_devices`, `list_diagnostics`, `get_diagnostic`, `delete_diagnostics`.
+- Produces facade methods: `devices_list`, `device_get(id)`, `device_delete(id)`, `devices_delete_all`, `diagnostics_list`, `diagnostic_get(id)`, `diagnostics_delete_all`. Adds `Command::Devices` and `Command::Diagnostics`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1006,8 +1044,7 @@ fn devices_list_reads_endpoint() {
     let server = MockServer::start();
     let m = server.mock(|when, then| {
         when.method(GET).path("/api/devices");
-        then.status(200).header("content-type", "application/json")
-            .body(r#"{"data":[]}"#);
+        then.status(200).header("content-type", "application/json").body(r#"{"data":[]}"#);
     });
     let mut cmd = Command::cargo_bin("otctl").unwrap();
     cmd.args(["--base-url", &server.base_url(), "--json", "devices", "list"]);
@@ -1019,19 +1056,33 @@ fn devices_list_reads_endpoint() {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cargo test --test cli_devices`
-Expected: FAIL (no `devices` command).
+Expected: FAIL.
 
 - [ ] **Step 3: Add facade methods**
 
 ```rust
 impl OtbrClient {
-    pub async fn devices_list(&self) -> Result<serde_json::Value> { self.get_json("/api/devices").await }
-    pub async fn device_get(&self, id: &str) -> Result<serde_json::Value> { self.get_json(&format!("/api/devices/{id}")).await }
-    pub async fn device_delete(&self, id: &str) -> Result<serde_json::Value> { self.delete_json(&format!("/api/devices/{id}"), None).await }
-    pub async fn devices_delete_all(&self) -> Result<serde_json::Value> { self.delete_json("/api/devices", None).await }
-    pub async fn diagnostics_list(&self) -> Result<serde_json::Value> { self.get_json("/api/diagnostics").await }
-    pub async fn diagnostic_get(&self, id: &str) -> Result<serde_json::Value> { self.get_json(&format!("/api/diagnostics/{id}")).await }
-    pub async fn diagnostics_delete_all(&self) -> Result<serde_json::Value> { self.delete_json("/api/diagnostics", None).await }
+    pub async fn devices_list(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.list_devices().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn device_get(&self, id: &str) -> Result<serde_json::Value> {
+        into_value(self.inner.get_device().device_id(id).send().await.map_err(map_progenitor)?)
+    }
+    pub async fn device_delete(&self, id: &str) -> Result<serde_json::Value> {
+        into_value(self.inner.delete_device().device_id(id).send().await.map_err(map_progenitor)?)
+    }
+    pub async fn devices_delete_all(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.delete_devices().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn diagnostics_list(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.list_diagnostics().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn diagnostic_get(&self, id: &str) -> Result<serde_json::Value> {
+        into_value(self.inner.get_diagnostic().diagnostics_id(id).send().await.map_err(map_progenitor)?)
+    }
+    pub async fn diagnostics_delete_all(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.delete_diagnostics().send().await.map_err(map_progenitor)?)
+    }
 }
 ```
 
@@ -1056,7 +1107,7 @@ pub enum DiagnosticsCmd {
 }
 ```
 
-Add `mod devices;`, add `Devices { #[command(subcommand)] what: devices::DevicesCmd }` and `Diagnostics { #[command(subcommand)] what: devices::DiagnosticsCmd }` to `Command`, and dispatch each arm to the matching facade method.
+Add `mod devices;`, add `Devices { #[command(subcommand)] what: devices::DevicesCmd }` and `Diagnostics { #[command(subcommand)] what: devices::DiagnosticsCmd }` to `Command`; dispatch each arm to the matching facade method.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -1081,8 +1132,8 @@ git commit -m "Add devices and diagnostics commands"
 - Test: `tests/cli_actions.rs`
 
 **Interfaces:**
-- Consumes: `submit_action`, `submit_and_wait`, `get_json`, `delete_json`.
-- Produces facade methods: `actions_list` (GET `/api/actions`), `action_get(id)` (GET `/api/actions/{id}`), `actions_delete_all` (DELETE `/api/actions`). Adds `Command::Actions` with `Submit { file, no_wait }`, `List`, `Get { id }`, `DeleteAll`. Submit reads a JSON task body from a file or stdin; default polls via `submit_and_wait` (1s poll, 60s timeout), `--no-wait` prints the submitted action id.
+- Consumes: `submit_action`, `submit_and_wait`, generated `list_actions`, `get_action`, `delete_actions`.
+- Produces facade methods: `actions_list`, `actions_delete_all` (and the existing `action_get`/`submit_action`/`submit_and_wait`). Adds `Command::Actions` with `Submit { file, no_wait }`, `List`, `Get { id }`, `DeleteAll`. Submit reads a JSON task body from a file or stdin; default polls via `submit_and_wait` (1s poll, 60s timeout), `--no-wait` prints the submitted action id.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1110,15 +1161,18 @@ fn actions_submit_no_wait_prints_id() {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cargo test --test cli_actions`
-Expected: FAIL (no `actions` command).
+Expected: FAIL.
 
 - [ ] **Step 3: Add facade methods**
 
 ```rust
 impl OtbrClient {
-    pub async fn actions_list(&self) -> Result<serde_json::Value> { self.get_json("/api/actions").await }
-    pub async fn action_get(&self, id: &str) -> Result<serde_json::Value> { self.get_json(&format!("/api/actions/{id}")).await }
-    pub async fn actions_delete_all(&self) -> Result<serde_json::Value> { self.delete_json("/api/actions", None).await }
+    pub async fn actions_list(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.list_actions().send().await.map_err(map_progenitor)?)
+    }
+    pub async fn actions_delete_all(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.delete_actions().send().await.map_err(map_progenitor)?)
+    }
 }
 ```
 
@@ -1161,7 +1215,7 @@ ActionsCmd::Submit { file, no_wait } => {
 }
 ```
 
-Dispatch `List`/`Get`/`DeleteAll` to the matching facade methods.
+Dispatch `List`/`Get { id }`/`DeleteAll` to `actions_list` / `action_get(&id)` / `actions_delete_all`.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -1184,7 +1238,7 @@ git commit -m "Add actions commands with --no-wait"
 
 **Interfaces:**
 - Consumes: the built `otctl` binary.
-- Produces: tests that run only when `OTBR_TEST_URL` is set, hitting a real otbr.
+- Produces: tests that run only when `OTBR_TEST_URL` is set.
 
 - [ ] **Step 1: Write the gated tests**
 
@@ -1201,9 +1255,9 @@ fn live_node_state() {
         eprintln!("skipping: OTBR_TEST_URL not set");
         return;
     };
-    let mut cmd = Command::cargo_bin("otctl").unwrap();
-    cmd.args(["--base-url", &url, "node", "state"]);
-    cmd.assert().success();
+    Command::cargo_bin("otctl").unwrap()
+        .args(["--base-url", &url, "node", "state"])
+        .assert().success();
 }
 
 #[test]
@@ -1212,9 +1266,9 @@ fn live_dataset_active_json() {
         eprintln!("skipping: OTBR_TEST_URL not set");
         return;
     };
-    let mut cmd = Command::cargo_bin("otctl").unwrap();
-    cmd.args(["--base-url", &url, "--json", "dataset", "active"]);
-    cmd.assert().success().stdout(predicates::str::contains("{"));
+    Command::cargo_bin("otctl").unwrap()
+        .args(["--base-url", &url, "--json", "dataset", "active"])
+        .assert().success().stdout(predicates::str::contains("{"));
 }
 ```
 
@@ -1226,7 +1280,7 @@ Expected: PASS (both print "skipping" and return).
 - [ ] **Step 3: Verify against a live otbr (manual)**
 
 Run: `OTBR_TEST_URL=http://127.0.0.1:8081 cargo test --test live -- --nocapture`
-Expected: PASS against the running `otbr` container. If the container is down, this is the only step expected to fail; note it and move on.
+Expected: PASS against the running `otbr` container (`docker logs --tail 30 otbr` to confirm it is up; `curl -s http://127.0.0.1:8081/node` as a sanity check). If the container is down, this is the only step expected to fail; note it and move on.
 
 - [ ] **Step 4: Commit**
 
@@ -1248,7 +1302,7 @@ git commit -m "Add gated live integration tests"
 
 - [ ] **Step 1: Write `README.md`**
 
-Document: what `otctl` is, the `--base-url`/`OTBR_URL`/`--json` globals, one example per command group, and the `docker logs --tail 30 otbr` / `curl -s http://127.0.0.1:8081/node` reference commands for sanity-checking a running node.
+Document: what `otctl` is, the `--base-url`/`OTBR_URL`/`--json` globals, one example per command group (`node state`, `dataset active`, `commissioner joiner add --file j.json`, `devices list`, `actions submit --file task.json`), and the `docker logs --tail 30 otbr` / `curl -s http://127.0.0.1:8081/node` reference commands for sanity-checking a running node.
 
 - [ ] **Step 2: Run the full test suite**
 
@@ -1272,20 +1326,20 @@ git commit -m "Add README and finalise build"
 ## Self-Review
 
 **Spec coverage:**
-- Vendored hand-patched spec + four fixes → Tasks 1, 2 (+ `docs/spec-sync.md`). ✓
-- progenitor codegen → Task 2. ✓
+- Vendored hand-patched spec + fixes → Tasks 1, 2 (+ `docs/spec-sync.md`). ✓
+- progenitor codegen, facade uses generated typed methods → Tasks 2, 4, 5, 8-11. ✓
 - Node info/state → Tasks 7, 8. ✓
 - Datasets + commissioning → Task 9. ✓
 - Devices + diagnostics → Task 10. ✓
 - Actions block+poll with `--no-wait` → Tasks 5, 11. ✓
 - Human tables + `--json` → Task 6. ✓
 - `--base-url` default `127.0.0.1:8081` + `OTBR_URL` → Task 7. ✓
-- thiserror error mapping + exit codes → Tasks 3, 7. ✓
+- thiserror error mapping (incl. progenitor errors) + exit codes → Tasks 3, 7. ✓
 - Gated live integration tests → Task 12. ✓
 - Single crate lib + bin → Task 1. ✓
 
-**Note on generated client usage:** the facade reaches the flat `/node/*` and JSON:API `/api/*` endpoints through small typed `reqwest` helpers returning `serde_json::Value`, rather than progenitor's generated methods, because the bodies are best rendered uniformly and several are bare scalars. progenitor is still generated and compiled (Task 2) to validate the patched spec and remains available for future typed-request work; this keeps the CLI insulated from generated method-name churn, per the Global Constraints. This is a deliberate simplification consistent with the spec's facade-as-public-surface design.
+**Generated-name risk:** generated builder/type/param names are assumed from the `operationId` and spec parameter/schema names and confirmed in Task 2 Step 8; every facade task instructs substituting the discovered name if progenitor differs. The `body(typed)` builder shape and any required `accept` header are the two spots most likely to need adjustment, flagged in Tasks 5 and 8.
 
 **Placeholder scan:** no TBD/TODO; every code step contains complete code. ✓
 
-**Type consistency:** facade methods return `serde_json::Value` throughout; `run` returns `Result<String>`; `to_output(&Value, bool)`; error helpers `parse_api_errors`, `exit_code` consistent across tasks. ✓
+**Type consistency:** facade public methods return `Result<serde_json::Value>` (or `Result<String>` for `submit_action`); `run` returns `Result<String>`; `to_output(&Value, bool)`; `into_value`, `map_progenitor`, `parse_api_errors`, `exit_code` used consistently across tasks. ✓
