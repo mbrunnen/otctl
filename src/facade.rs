@@ -1,6 +1,7 @@
 use crate::error::{map_progenitor, Error, Result};
-use crate::generated::Client;
+use crate::generated::{types, Client};
 use progenitor_client::ResponseValue;
+use std::time::{Duration, Instant};
 
 pub const DEFAULT_BASE_URL: &str = "http://127.0.0.1:8081";
 
@@ -27,6 +28,52 @@ impl OtbrClient {
     pub async fn node_state(&self) -> Result<serde_json::Value> {
         into_value(self.inner.get_node_state().await.map_err(map_progenitor)?)
     }
+
+    pub async fn submit_action(&self, body: serde_json::Value) -> Result<String> {
+        let typed: types::ActionsClient =
+            serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
+        let resp = self.inner.invoke_action(&typed).await.map_err(map_progenitor)?;
+        let v = serde_json::to_value(resp.into_inner()).map_err(|e| Error::Parse(e.to_string()))?;
+        v["data"][0]["id"]
+            .as_str()
+            .map(|s| s.to_string())
+            .ok_or_else(|| Error::Parse("missing action id in response".into()))
+    }
+
+    pub async fn get_action(&self, id: &str) -> Result<serde_json::Value> {
+        let url = format!("{}/api/actions/{}", self.inner.baseurl(), id);
+        let resp = self
+            .inner
+            .client()
+            .get(&url)
+            .send()
+            .await
+            .map_err(Error::Http)?;
+        resp.json::<serde_json::Value>()
+            .await
+            .map_err(|e| Error::Parse(e.to_string()))
+    }
+
+    pub async fn submit_and_wait(
+        &self,
+        body: serde_json::Value,
+        poll: Duration,
+        timeout: Duration,
+    ) -> Result<serde_json::Value> {
+        let id = self.submit_action(body).await?;
+        let deadline = Instant::now() + timeout;
+        loop {
+            let action = self.get_action(&id).await?;
+            let status = action["data"]["attributes"]["status"].as_str().unwrap_or("");
+            if matches!(status, "completed" | "stopped" | "failed") {
+                return Ok(action);
+            }
+            if Instant::now() >= deadline {
+                return Err(Error::Timeout);
+            }
+            tokio::time::sleep(poll).await;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -45,5 +92,34 @@ mod tests {
         let v = client.node_state().await.unwrap();
         m.assert();
         assert_eq!(v, serde_json::json!("leader"));
+    }
+
+    #[tokio::test]
+    async fn submit_and_wait_polls_until_completed() {
+        let server = MockServer::start();
+        let post = server.mock(|when, then| {
+            when.method(POST).path("/api/actions");
+            then.status(200).header("content-type", "application/json").body(
+                r#"{"data":[{"id":"abc","type":"getNetworkDiagnosticTask","attributes":{"status":"pending"}}]}"#,
+            );
+        });
+        let get = server.mock(|when, then| {
+            when.method(GET).path("/api/actions/abc");
+            then.status(200).header("content-type", "application/json").body(
+                r#"{"data":{"id":"abc","type":"getNetworkDiagnosticTask","attributes":{"status":"completed"}}}"#,
+            );
+        });
+        let client = OtbrClient::new(&server.base_url());
+        let v = client
+            .submit_and_wait(
+                serde_json::json!({"data":[]}),
+                std::time::Duration::from_millis(1),
+                std::time::Duration::from_secs(5),
+            )
+            .await
+            .unwrap();
+        post.assert();
+        get.assert_hits(1);
+        assert_eq!(v["data"]["attributes"]["status"], "completed");
     }
 }
