@@ -144,6 +144,34 @@ impl OtbrClient {
         ok_after(self.inner.remove_commissioner_joiner(spec).await.map_err(map_progenitor)?)
     }
 
+    pub async fn devices_list(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.list_devices().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn device_get(&self, id: &str) -> Result<serde_json::Value> {
+        into_value(self.inner.get_device(id).await.map_err(map_progenitor)?)
+    }
+
+    pub async fn device_delete(&self, id: &str) -> Result<serde_json::Value> {
+        ok_after(self.inner.delete_device(id).await.map_err(map_progenitor)?)
+    }
+
+    pub async fn devices_delete_all(&self) -> Result<serde_json::Value> {
+        ok_after(self.inner.delete_devices().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn diagnostics_list(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.list_diagnostics().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn diagnostic_get(&self, id: &str) -> Result<serde_json::Value> {
+        into_value(self.inner.get_diagnostic(id).await.map_err(map_progenitor)?)
+    }
+
+    pub async fn diagnostics_delete_all(&self) -> Result<serde_json::Value> {
+        ok_after(self.inner.delete_diagnostics().await.map_err(map_progenitor)?)
+    }
+
     pub async fn submit_and_wait(
         &self,
         body: serde_json::Value,

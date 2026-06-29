@@ -1,3 +1,4 @@
+pub mod devices;
 pub mod node_ext;
 
 use crate::error::{Error, Result};
@@ -29,6 +30,14 @@ pub enum Command {
     Commissioner {
         #[command(subcommand)]
         what: node_ext::CommissionerCmd,
+    },
+    Devices {
+        #[command(subcommand)]
+        what: devices::DevicesCmd,
+    },
+    Diagnostics {
+        #[command(subcommand)]
+        what: devices::DiagnosticsCmd,
     },
 }
 
@@ -86,6 +95,17 @@ pub async fn run(cli: Cli) -> Result<String> {
             node_ext::CommissionerCmd::JoinerRemove { value } => {
                 client.remove_commissioner_joiner(&value).await?
             }
+        },
+        Command::Devices { what } => match what {
+            devices::DevicesCmd::List => client.devices_list().await?,
+            devices::DevicesCmd::Get { id } => client.device_get(&id).await?,
+            devices::DevicesCmd::Delete { id } => client.device_delete(&id).await?,
+            devices::DevicesCmd::DeleteAll => client.devices_delete_all().await?,
+        },
+        Command::Diagnostics { what } => match what {
+            devices::DiagnosticsCmd::List => client.diagnostics_list().await?,
+            devices::DiagnosticsCmd::Get { id } => client.diagnostic_get(&id).await?,
+            devices::DiagnosticsCmd::DeleteAll => client.diagnostics_delete_all().await?,
         },
     };
     Ok(to_output(&value, cli.json))
