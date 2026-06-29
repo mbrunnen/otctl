@@ -1,4 +1,4 @@
-use crate::error::{map_progenitor, Error, Result};
+use crate::error::{map_progenitor, parse_api_errors, Error, Result};
 use crate::generated::{types, Client};
 use progenitor_client::ResponseValue;
 use std::time::{Duration, Instant};
@@ -49,6 +49,11 @@ impl OtbrClient {
             .send()
             .await
             .map_err(Error::Http)?;
+        if !resp.status().is_success() {
+            let status = resp.status().as_u16();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(parse_api_errors(status, &body));
+        }
         resp.json::<serde_json::Value>()
             .await
             .map_err(|e| Error::Parse(e.to_string()))
@@ -121,5 +126,46 @@ mod tests {
         post.assert();
         get.assert_hits(1);
         assert_eq!(v["data"]["attributes"]["status"], "completed");
+    }
+
+    #[tokio::test]
+    async fn get_action_surfaces_non_2xx_as_api_error() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(GET).path("/api/actions/missing");
+            then.status(404)
+                .header("content-type", "application/json")
+                .body(r#"{"errors":[{"title":"not found"}]}"#);
+        });
+        let client = OtbrClient::new(&server.base_url());
+        let err = client.get_action("missing").await.unwrap_err();
+        assert!(matches!(err, Error::Api { status: 404, .. }));
+    }
+
+    #[tokio::test]
+    async fn submit_and_wait_returns_timeout_when_action_stays_pending() {
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(POST).path("/api/actions");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"{"data":[{"id":"abc","type":"getNetworkDiagnosticTask","attributes":{"status":"pending"}}]}"#);
+        });
+        server.mock(|when, then| {
+            when.method(GET).path("/api/actions/abc");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"{"data":{"id":"abc","type":"getNetworkDiagnosticTask","attributes":{"status":"pending"}}}"#);
+        });
+        let client = OtbrClient::new(&server.base_url());
+        let err = client
+            .submit_and_wait(
+                serde_json::json!({"data":[]}),
+                std::time::Duration::from_millis(1),
+                std::time::Duration::from_millis(20),
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Timeout));
     }
 }
