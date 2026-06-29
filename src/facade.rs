@@ -151,21 +151,34 @@ impl OtbrClient {
     }
 
     pub async fn dataset_active(&self) -> Result<serde_json::Value> {
-        into_value(
-            self.inner
-                .get_active_dataset()
-                .await
-                .map_err(map_progenitor)?,
-        )
+        self.get_dataset("/node/dataset/active").await
     }
 
     pub async fn dataset_pending(&self) -> Result<serde_json::Value> {
-        into_value(
-            self.inner
-                .get_pending_dataset()
+        self.get_dataset("/node/dataset/pending").await
+    }
+
+    async fn get_dataset(&self, path: &str) -> Result<serde_json::Value> {
+        let url = format!("{}{}", self.inner.baseurl(), path);
+        let resp = self
+            .inner
+            .client()
+            .get(&url)
+            .send()
+            .await
+            .map_err(Error::Http)?;
+        let status = resp.status();
+        if status.as_u16() == 204 {
+            return Ok(serde_json::Value::Null);
+        }
+        if status.is_success() {
+            return resp
+                .json::<serde_json::Value>()
                 .await
-                .map_err(map_progenitor)?,
-        )
+                .map_err(|e| Error::Parse(e.to_string()));
+        }
+        let body = resp.text().await.unwrap_or_default();
+        Err(parse_api_errors(status.as_u16(), &body))
     }
 
     pub async fn set_dataset_active(&self, body: serde_json::Value) -> Result<serde_json::Value> {
