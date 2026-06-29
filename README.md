@@ -144,7 +144,8 @@ otctl actions submit --file task.json --json
 # full JSON action item
 
 otctl actions submit --file task.json --no-wait
-# id: f47ac10b-58cc-4372-a567-0e02b2c3d479
+# field  value
+# id     f47ac10b-58cc-4372-a567-0e02b2c3d479
 ```
 
 Pass `-` as the filename to read from stdin:
