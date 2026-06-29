@@ -13,7 +13,6 @@ fn into_value<T: serde::Serialize>(r: ResponseValue<T>) -> Result<serde_json::Va
     serde_json::to_value(r.into_inner()).map_err(|e| Error::Parse(e.to_string()))
 }
 
-#[allow(dead_code)]
 fn ok_after<T>(_r: ResponseValue<T>) -> Result<serde_json::Value> {
     Ok(serde_json::json!({ "ok": true }))
 }
@@ -27,6 +26,50 @@ impl OtbrClient {
 
     pub async fn node_state(&self) -> Result<serde_json::Value> {
         into_value(self.inner.get_node_state().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_rloc(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_rloc().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_rloc16(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_rloc16().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_ext_address(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_ext_address().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_network_name(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_network_name().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_leader_data(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_leader_data().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_ext_panid(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_ext_pan_id().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_num_of_router(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_num_of_router().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_coprocessor_version(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_coprocessor_version().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_ba_id(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_ba_id().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn node_info(&self) -> Result<serde_json::Value> {
+        into_value(self.inner.get_node_information().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn set_node_state(&self, state: &str) -> Result<serde_json::Value> {
+        ok_after(self.inner.set_node_state(state).await.map_err(map_progenitor)?)
     }
 
     pub async fn submit_action(&self, body: serde_json::Value) -> Result<String> {

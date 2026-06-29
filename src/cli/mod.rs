@@ -24,14 +24,35 @@ pub enum Command {
 
 #[derive(Subcommand)]
 pub enum NodeCmd {
-    State,
+    State { #[arg(long)] set: Option<String> },
+    Rloc,
+    Rloc16,
+    ExtAddress,
+    NetworkName,
+    LeaderData,
+    ExtPanid,
+    NumOfRouter,
+    CoprocessorVersion,
+    BaId,
+    Info,
 }
 
 pub async fn run(cli: Cli) -> Result<String> {
     let client = OtbrClient::new(&cli.base_url);
     let value = match cli.command {
         Command::Node { what } => match what {
-            NodeCmd::State => client.node_state().await?,
+            NodeCmd::State { set: Some(s) } => client.set_node_state(&s).await?,
+            NodeCmd::State { set: None } => client.node_state().await?,
+            NodeCmd::Rloc => client.node_rloc().await?,
+            NodeCmd::Rloc16 => client.node_rloc16().await?,
+            NodeCmd::ExtAddress => client.node_ext_address().await?,
+            NodeCmd::NetworkName => client.node_network_name().await?,
+            NodeCmd::LeaderData => client.node_leader_data().await?,
+            NodeCmd::ExtPanid => client.node_ext_panid().await?,
+            NodeCmd::NumOfRouter => client.node_num_of_router().await?,
+            NodeCmd::CoprocessorVersion => client.node_coprocessor_version().await?,
+            NodeCmd::BaId => client.node_ba_id().await?,
+            NodeCmd::Info => client.node_info().await?,
         },
     };
     Ok(to_output(&value, cli.json))
