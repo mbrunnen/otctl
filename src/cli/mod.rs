@@ -131,7 +131,20 @@ pub async fn run(cli: Cli) -> Result<String> {
             }
         },
         Command::Devices { what } => match what {
-            devices::DevicesCmd::List => client.devices_list().await?,
+            devices::DevicesCmd::List { no_refresh } => {
+                if !no_refresh {
+                    eprintln!(
+                        "Refreshing device collection (network scan, up to ~100s); use --no-refresh to skip."
+                    );
+                    client
+                        .refresh_device_collection(
+                            std::time::Duration::from_secs(1),
+                            std::time::Duration::from_secs(100),
+                        )
+                        .await?;
+                }
+                client.devices_list().await?
+            }
             devices::DevicesCmd::Get { id } => client.device_get(&id).await?,
             devices::DevicesCmd::Delete { id } => client.device_delete(&id).await?,
             devices::DevicesCmd::DeleteAll => client.devices_delete_all().await?,

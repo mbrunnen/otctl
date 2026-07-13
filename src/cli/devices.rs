@@ -2,9 +2,16 @@ use clap::Subcommand;
 
 #[derive(Subcommand)]
 pub enum DevicesCmd {
-    List,
-    Get { id: String },
-    Delete { id: String },
+    List {
+        #[arg(long)]
+        no_refresh: bool,
+    },
+    Get {
+        id: String,
+    },
+    Delete {
+        id: String,
+    },
     DeleteAll,
 }
 

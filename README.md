@@ -94,10 +94,13 @@ Manage the device table.
 
 ```
 otctl devices list
+otctl devices list --no-refresh
 otctl devices get <id>
 otctl devices delete <id>
 otctl devices delete-all
 ```
+
+`list` first refreshes the collection by submitting an `updateDeviceCollectionTask` and waiting for it to finish (network diagnostics; may take up to ~90 s), so the table reflects the live network. Pass `--no-refresh` to read the collection as-is, which is instant but may be stale or empty until a refresh has run.
 
 Example:
 

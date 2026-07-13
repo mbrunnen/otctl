@@ -95,12 +95,7 @@ impl OtbrClient {
     }
 
     pub async fn node_info(&self) -> Result<serde_json::Value> {
-        into_value(
-            self.inner
-                .get_node_information()
-                .await
-                .map_err(map_progenitor)?,
-        )
+        into_value(self.inner.get_node().await.map_err(map_progenitor)?)
     }
 
     pub async fn set_node_state(&self, state: &str) -> Result<serde_json::Value> {
@@ -117,14 +112,31 @@ impl OtbrClient {
     }
 
     pub async fn submit_action(&self, body: serde_json::Value) -> Result<String> {
+        // OTBR rejects POST /api/actions unless the Content-Type is
+        // application/vnd.api+json; the generated client sends application/json
+        // (415), so post manually while still validating the body shape.
         let typed: types::ActionsClient =
             serde_json::from_value(body).map_err(|e| Error::Parse(e.to_string()))?;
+        let payload = serde_json::to_vec(&typed).map_err(|e| Error::Parse(e.to_string()))?;
+        let url = format!("{}/api/actions", self.inner.baseurl());
         let resp = self
             .inner
-            .invoke_action(&typed)
+            .client()
+            .post(&url)
+            .header("content-type", "application/vnd.api+json")
+            .body(payload)
+            .send()
             .await
-            .map_err(map_progenitor)?;
-        let v = serde_json::to_value(resp.into_inner()).map_err(|e| Error::Parse(e.to_string()))?;
+            .map_err(Error::Http)?;
+        let status = resp.status();
+        if !status.is_success() {
+            let text = resp.text().await.unwrap_or_default();
+            return Err(parse_api_errors(status.as_u16(), &text));
+        }
+        let v = resp
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| Error::Parse(e.to_string()))?;
         v["data"][0]["id"]
             .as_str()
             .map(|s| s.to_string())
@@ -259,6 +271,22 @@ impl OtbrClient {
 
     pub async fn actions_delete_all(&self) -> Result<serde_json::Value> {
         ok_after(self.inner.delete_actions().await.map_err(map_progenitor)?)
+    }
+
+    pub async fn refresh_device_collection(&self, poll: Duration, timeout: Duration) -> Result<()> {
+        let body = serde_json::json!({
+            "data": [{
+                "type": "updateDeviceCollectionTask",
+                "attributes": {
+                    "maxAge": 30,
+                    "maxRetries": 5,
+                    "deviceCount": 10,
+                    "timeout": 93
+                }
+            }]
+        });
+        self.submit_and_wait(body, poll, timeout).await?;
+        Ok(())
     }
 
     pub async fn devices_list(&self) -> Result<serde_json::Value> {
@@ -416,5 +444,85 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, Error::Timeout));
+    }
+}
+
+#[cfg(test)]
+mod fix_tests {
+    use super::*;
+    use httpmock::prelude::*;
+
+    #[tokio::test]
+    async fn node_info_reads_live_node_endpoint() {
+        let server = MockServer::start();
+        let m = server.mock(|when, then| {
+            when.method(GET).path("/node");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"{"state":"leader","rloc16":"0xf000","networkName":"OpenThread"}"#);
+        });
+        let client = OtbrClient::new(&server.base_url());
+        let v = client.node_info().await.unwrap();
+        m.assert();
+        assert_eq!(v["state"], "leader");
+        assert_eq!(v["rloc16"], "0xf000");
+    }
+
+    #[tokio::test]
+    async fn refresh_device_collection_posts_update_task_and_waits() {
+        let server = MockServer::start();
+        let post = server.mock(|when, then| {
+            when.method(POST).path("/api/actions");
+            then.status(200).header("content-type", "application/json").body(
+                r#"{"data":[{"id":"u1","type":"updateDeviceCollectionTask","attributes":{"status":"pending"}}]}"#,
+            );
+        });
+        let get_action = server.mock(|when, then| {
+            when.method(GET).path("/api/actions/u1");
+            then.status(200).header("content-type", "application/json").body(
+                r#"{"data":{"id":"u1","type":"updateDeviceCollectionTask","attributes":{"status":"stopped"}}}"#,
+            );
+        });
+        let client = OtbrClient::new(&server.base_url());
+        client
+            .refresh_device_collection(
+                std::time::Duration::from_millis(1),
+                std::time::Duration::from_secs(5),
+            )
+            .await
+            .unwrap();
+        post.assert();
+        get_action.assert_hits(1);
+    }
+}
+
+#[cfg(test)]
+mod content_type_tests {
+    use super::*;
+    use httpmock::prelude::*;
+
+    #[tokio::test]
+    async fn submit_action_posts_with_jsonapi_content_type() {
+        let server = MockServer::start();
+        let m = server.mock(|when, then| {
+            when.method(POST)
+                .path("/api/actions")
+                .header("content-type", "application/vnd.api+json");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"{"data":[{"id":"a1"}]}"#);
+        });
+        let client = OtbrClient::new(&server.base_url());
+        let id = client
+            .submit_action(serde_json::json!({
+                "data": [{
+                    "type": "updateDeviceCollectionTask",
+                    "attributes": {"maxAge": 30, "maxRetries": 5, "deviceCount": 10, "timeout": 93}
+                }]
+            }))
+            .await
+            .unwrap();
+        m.assert();
+        assert_eq!(id, "a1");
     }
 }
