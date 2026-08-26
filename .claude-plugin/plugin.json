@@ -1,0 +1,8 @@
+{
+  "name": "otctl",
+  "description": "otctl skill for Claude Code: OTBR/Thread network access from any project",
+  "version": "0.1.0",
+  "author": {
+    "name": "Manoel Brunnen"
+  }
+}

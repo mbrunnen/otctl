@@ -1,0 +1,14 @@
+{
+  "name": "otctl",
+  "description": "Claude Code skill for the otctl OTBR CLI",
+  "owner": {
+    "name": "Manoel Brunnen"
+  },
+  "plugins": [
+    {
+      "name": "otctl",
+      "source": ".",
+      "description": "otctl skill for Claude Code: OTBR/Thread network access from any project"
+    }
+  ]
+}
