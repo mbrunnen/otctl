@@ -18,6 +18,8 @@ pub enum Error {
     Parse(String),
     #[error("{0}")]
     Aborted(String),
+    #[error("config error: {0}")]
+    Config(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

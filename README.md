@@ -9,6 +9,18 @@ Command-line interface for the [OpenThread Border Router (OTBR) REST API](https:
 | `--base-url` | `OTBR_URL` | `http://127.0.0.1:8081` | Base URL of the OTBR REST API |
 | `--json` | | false | Output raw JSON instead of a human-readable table |
 
+The base URL is resolved in this order: `--base-url` flag, then `OTBR_URL` env var, then the `base_url` in the config file, then the built-in default.
+
+### config
+
+Save a default base URL so you don't have to pass `--base-url` every time.
+
+```
+otctl config init
+```
+
+Prompts for a base URL, showing the currently configured value (or the built-in default) as the default you get by pressing Enter. Writes to `~/.config/otctl/config.toml` (or `$XDG_CONFIG_HOME/otctl/config.toml`).
+
 ## Commands
 
 ### node

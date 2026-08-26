@@ -2,6 +2,7 @@ pub mod actions;
 pub mod devices;
 pub mod node_ext;
 
+use crate::config::{resolve_base_url, Config};
 use crate::error::{Error, Result};
 use crate::facade::{OtbrClient, DEFAULT_BASE_URL};
 use crate::render::to_output;
@@ -10,8 +11,8 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(name = "otctl", about = "OpenThread Border Router REST CLI")]
 pub struct Cli {
-    #[arg(long, env = "OTBR_URL", default_value = DEFAULT_BASE_URL, global = true)]
-    pub base_url: String,
+    #[arg(long, env = "OTBR_URL", global = true)]
+    pub base_url: Option<String>,
     #[arg(long, global = true)]
     pub json: bool,
     #[command(subcommand)]
@@ -44,6 +45,15 @@ pub enum Command {
         #[command(subcommand)]
         what: actions::ActionsCmd,
     },
+    Config {
+        #[command(subcommand)]
+        what: ConfigCmd,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ConfigCmd {
+    Init,
 }
 
 #[derive(Subcommand)]
@@ -69,7 +79,16 @@ pub enum NodeCmd {
 }
 
 pub async fn run(cli: Cli) -> Result<String> {
-    let client = OtbrClient::new(&cli.base_url);
+    if let Command::Config {
+        what: ConfigCmd::Init,
+    } = &cli.command
+    {
+        return config_init(cli.base_url);
+    }
+
+    let config = Config::load()?;
+    let base_url = resolve_base_url(cli.base_url, config.base_url, DEFAULT_BASE_URL);
+    let client = OtbrClient::new(&base_url);
     let value = match cli.command {
         Command::Node { what } => match what {
             NodeCmd::State { set: Some(s) } => client.set_node_state(&s).await?,
@@ -174,8 +193,33 @@ pub async fn run(cli: Cli) -> Result<String> {
             actions::ActionsCmd::Get { id } => client.get_action(&id).await?,
             actions::ActionsCmd::DeleteAll => client.actions_delete_all().await?,
         },
+        Command::Config { .. } => unreachable!("handled above before client construction"),
     };
     Ok(to_output(&value, cli.json))
+}
+
+fn config_init(cli_base_url: Option<String>) -> Result<String> {
+    let mut config = Config::load()?;
+    let current = cli_base_url.or_else(|| config.base_url.clone());
+    let shown_default = current.as_deref().unwrap_or(DEFAULT_BASE_URL);
+
+    eprint!("Base URL [{shown_default}]: ");
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| Error::Config(e.to_string()))?;
+    let trimmed = input.trim();
+    config.base_url = Some(if trimmed.is_empty() {
+        shown_default.to_string()
+    } else {
+        trimmed.to_string()
+    });
+    config.save()?;
+
+    let path = Config::path()
+        .map(|p| p.display().to_string())
+        .unwrap_or_default();
+    Ok(format!("Saved config to {path}"))
 }
 
 pub fn exit_code(err: &Error) -> i32 {
