@@ -140,10 +140,26 @@ pub async fn run(cli: Cli) -> Result<String> {
             }
             node_ext::CommissionerCmd::State { set: None } => client.commissioner_state().await?,
             node_ext::CommissionerCmd::JoinerList => client.commissioner_joiner().await?,
-            node_ext::CommissionerCmd::JoinerAdd { file } => {
-                client
-                    .add_commissioner_joiner(node_ext::read_json_input(&file)?)
-                    .await?
+            node_ext::CommissionerCmd::JoinerAdd {
+                file,
+                pskd,
+                joiner_id,
+                eui64,
+                discerner,
+                timeout,
+            } => {
+                let body = match file {
+                    Some(f) => node_ext::read_json_input(&f)?,
+                    None => node_ext::joiner_body(
+                        pskd.as_deref()
+                            .expect("clap requires --pskd without --file"),
+                        joiner_id.as_deref(),
+                        eui64.as_deref(),
+                        discerner.as_deref(),
+                        timeout,
+                    ),
+                };
+                client.add_commissioner_joiner(body).await?
             }
             node_ext::CommissionerCmd::JoinerRemove { value } => {
                 client.remove_commissioner_joiner(&value).await?

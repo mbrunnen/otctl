@@ -22,6 +22,7 @@
 12. Removed `AcceptJsonApi` header parameter and all its `$ref` references (generated enum does not implement `TryFrom<HeaderValue>`).
 13. Removed `pattern:` constraints from schemas and parameters (9 occurrences) to avoid requiring the `regress` crate dependency.
 14. Removed invalid default values (`default: random` on integer fields, `default: not set` on integer field).
+15. Removed the `default:` values from `JoinerData.joinerId` (`"*"`) and `JoinerData.timeout` (`60`). Progenitor materialises schema defaults into every serialised body, so `joinerId: "*"` was sent alongside `eui64`/`discerner` even though the spec declares the three mutually exclusive. Without the defaults the fields generate as `Option` and are omitted when unset; the CLI supplies the `"*"` wildcard explicitly instead.
 
 ## Re-sync procedure
 

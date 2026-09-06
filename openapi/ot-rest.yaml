@@ -1993,7 +1993,6 @@ components:
           type: string
           description: A string of the EUI-64, Discerner, or "*", mutually exclusive with Eui64 and Discerner
           example: "0xabc/12"
-          default: "*"
         eui64:
           type: string
           description: A string of the EUI-64, mutually exclusive with JoinerId and Discerner
@@ -2008,7 +2007,6 @@ components:
         timeout:
           type: integer
           description: Joiner expiration time in milliseconds on response and seconds on request 
-          default: 60 
 
   ### Parameters ##############################################################
   #############################################################################

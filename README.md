@@ -75,29 +75,38 @@ Manage the commissioner and joiner list.
 
 ```
 otctl commissioner state
-otctl commissioner state --set active
+otctl commissioner state --set enable
 otctl commissioner joiner-list
-otctl commissioner joiner-add --file joiner.json
-otctl commissioner joiner-remove <eui-or-pskd>
+otctl commissioner joiner-add --pskd J01NME
+otctl commissioner joiner-remove <eui64-or-discerner>
 ```
 
-Example:
+A joiner is added either from flags or from a `JoinerData` JSON document.
+The flag form covers the common cases:
 
 ```sh
-otctl commissioner joiner-add --file joiner.json
+otctl commissioner joiner-add --pskd J01NME
 # ok: true
+
+otctl commissioner joiner-add --pskd J01NME --eui64 0123456789abcdef --timeout 120
+otctl commissioner joiner-add --pskd J01NME --discerner 0xabc/12
 ```
 
-Where `joiner.json` contains a `JoinerData` object, e.g.:
+`--pskd` is required. `--joiner-id`, `--eui64` and `--discerner` are mutually
+exclusive; without one of them the wildcard joiner id `*` is sent, which admits
+any joiner presenting the PSKd. `--timeout` is the joiner expiration in seconds.
+
+For fields the flags do not cover, pass a `JoinerData` object with `--file`
+(mutually exclusive with the flags above):
 
 ```json
-{"eui": "*", "pskd": "J01NME"}
+{"pskd": "J01NME", "joinerId": "*"}
 ```
 
 Pass `-` as the filename to read from stdin:
 
 ```sh
-echo '{"eui":"*","pskd":"J01NME"}' | otctl commissioner joiner-add --file -
+echo '{"pskd":"J01NME","joinerId":"*"}' | otctl commissioner joiner-add --file -
 ```
 
 ### devices
