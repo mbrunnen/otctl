@@ -6,7 +6,8 @@ use crate::config::{resolve_base_url, Config};
 use crate::error::{Error, Result};
 use crate::facade::{OtbrClient, DEFAULT_BASE_URL};
 use crate::render::to_output;
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{generate, Shell};
 
 #[derive(Parser)]
 #[command(name = "otctl", about = "OpenThread Border Router REST CLI")]
@@ -49,6 +50,8 @@ pub enum Command {
         #[command(subcommand)]
         what: ConfigCmd,
     },
+    /// Print a shell completion script to stdout
+    Completions { shell: Shell },
 }
 
 #[derive(Subcommand)]
@@ -79,6 +82,10 @@ pub enum NodeCmd {
 }
 
 pub async fn run(cli: Cli) -> Result<String> {
+    if let Command::Completions { shell } = cli.command {
+        return Ok(completions(shell));
+    }
+
     if let Command::Config {
         what: ConfigCmd::Init,
     } = &cli.command
@@ -243,9 +250,17 @@ pub async fn run(cli: Cli) -> Result<String> {
             actions::ActionsCmd::Get { id } => client.get_action(&id).await?,
             actions::ActionsCmd::DeleteAll => client.actions_delete_all().await?,
         },
-        Command::Config { .. } => unreachable!("handled above before client construction"),
+        Command::Config { .. } | Command::Completions { .. } => {
+            unreachable!("handled above before client construction")
+        }
     };
     Ok(to_output(&value, cli.json))
+}
+
+fn completions(shell: Shell) -> String {
+    let mut buf = Vec::new();
+    generate(shell, &mut Cli::command(), "otctl", &mut buf);
+    String::from_utf8_lossy(&buf).into_owned()
 }
 
 fn config_init(cli_base_url: Option<String>) -> Result<String> {

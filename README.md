@@ -2,6 +2,36 @@
 
 Command-line interface for the [OpenThread Border Router (OTBR) REST API](https://openthread.io/reference/border-router/rest-api) v0.3.0.
 
+## Installing
+
+```sh
+cargo install --path .
+```
+
+Installs `otctl` into `~/.cargo/bin`.
+
+### Shell completion
+
+`otctl completions <shell>` writes a completion script to stdout for `bash`,
+`zsh`, `fish`, `elvish` or `powershell`. Where it belongs depends on the shell:
+
+```sh
+# zsh: any directory on $fpath, then rebuild the completion cache
+otctl completions zsh > ~/.zfunc/_otctl
+rm -f ~/.zcompdump && exec zsh
+
+# bash
+otctl completions bash > ~/.local/share/bash-completion/completions/otctl
+
+# fish
+otctl completions fish > ~/.config/fish/completions/otctl.fish
+```
+
+For zsh, `~/.zfunc` has to be on `$fpath` before `compinit` runs; add
+`fpath+=~/.zfunc` to `~/.zshrc` above the `compinit` call if it is not already
+there. Regenerate the script after upgrading `otctl`, as it is a snapshot of
+the subcommands and flags of the version that produced it.
+
 ## Global flags
 
 | Flag | Env | Default | Description |
