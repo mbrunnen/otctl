@@ -79,6 +79,7 @@ otctl commissioner state --set enable
 otctl commissioner joiner-list
 otctl commissioner joiner-add --pskd J01NME
 otctl commissioner joiner-remove <eui64-or-discerner>
+otctl commissioner enroll --pskd J01NME --eui fedcba9876543210
 ```
 
 A joiner is added either from flags or from a `JoinerData` JSON document.
@@ -108,6 +109,32 @@ Pass `-` as the filename to read from stdin:
 ```sh
 echo '{"pskd":"J01NME","joinerId":"*"}' | otctl commissioner joiner-add --file -
 ```
+
+#### enroll
+
+`joiner-add` only fills the joiner table; petitioning the commissioner and
+tearing it down again is left to the caller. `enroll` hands the whole sequence
+to the border router as an `addThreadDeviceTask`: it starts the on-mesh
+commissioner if needed, adds the joiner, waits for it to join, and stops the
+commissioner again when the last such task ends.
+
+```sh
+otctl commissioner enroll --pskd J01NME --eui fedcba9876543210
+# field       value
+# id          f47ac10b-58cc-4372-a567-0e02b2c3d479
+# type        addThreadDeviceTask
+# attributes  {"status":"completed"}
+
+otctl commissioner enroll --pskd J01NME --timeout 300
+otctl commissioner enroll --pskd J01NME --discerner 0xabc/12 --no-wait
+```
+
+`--pskd` is required; `--joiner-id`, `--eui` and `--discerner` are mutually
+exclusive and default to the wildcard `*`. Note the task attribute is `eui`,
+not the `eui64` of the joiner endpoint. `--timeout` (default 900 s) is how long
+the router waits for the joiner; the command waits that long plus a grace
+period, or returns the action id right away with `--no-wait`. Track a detached
+run with `otctl actions get <id>`.
 
 ### devices
 
@@ -147,13 +174,14 @@ Submit and track long-running actions.
 
 ```
 otctl actions submit --file task.json
+otctl actions submit --file task.json --timeout 900
 otctl actions submit --file task.json --no-wait
 otctl actions list
 otctl actions get <id>
 otctl actions delete-all
 ```
 
-`submit` blocks and polls until the action reaches `completed`, `stopped`, or `failed` (60 s timeout), unless `--no-wait` is given, in which case it returns the action ID immediately.
+`submit` blocks and polls until the action reaches `completed`, `stopped`, or `failed`, unless `--no-wait` is given, in which case it returns the action ID immediately. `--timeout` bounds the wait in seconds (default 60); raise it for tasks whose own `timeout` attribute is longer, otherwise the command gives up while the task keeps running on the router.
 
 Example:
 

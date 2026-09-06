@@ -37,6 +37,24 @@ pub enum CommissionerCmd {
     JoinerRemove {
         value: String,
     },
+    /// Enrol a joiner via an addThreadDeviceTask: the border router petitions
+    /// the commissioner, adds the joiner and stops the commissioner again.
+    Enroll {
+        #[arg(long)]
+        pskd: String,
+        #[arg(long, conflicts_with_all = ["eui", "discerner"])]
+        joiner_id: Option<String>,
+        #[arg(long, conflicts_with = "discerner")]
+        eui: Option<String>,
+        #[arg(long)]
+        discerner: Option<String>,
+        /// How long the border router waits for the joiner, in seconds
+        #[arg(long, default_value_t = 900)]
+        timeout: u32,
+        /// Print the action id instead of waiting for the joiner
+        #[arg(long)]
+        no_wait: bool,
+    },
 }
 
 pub fn read_json_input(spec: &str) -> crate::error::Result<serde_json::Value> {
@@ -73,4 +91,26 @@ pub fn joiner_body(
         body.insert("timeout".into(), t.into());
     }
     serde_json::Value::Object(body)
+}
+
+/// Builds an `addThreadDeviceTask` submission. The task attributes name the
+/// EUI-64 field `eui`, unlike the `eui64` of the joiner endpoint.
+pub fn enroll_body(
+    pskd: &str,
+    joiner_id: Option<&str>,
+    eui: Option<&str>,
+    discerner: Option<&str>,
+    timeout: u32,
+) -> serde_json::Value {
+    let mut attributes = serde_json::Map::new();
+    attributes.insert("pskd".into(), pskd.into());
+    match (joiner_id, eui, discerner) {
+        (_, Some(v), _) => attributes.insert("eui".into(), v.into()),
+        (_, _, Some(v)) => attributes.insert("discerner".into(), v.into()),
+        (id, _, _) => attributes.insert("joinerId".into(), id.unwrap_or("*").into()),
+    };
+    attributes.insert("timeout".into(), timeout.into());
+    serde_json::json!({
+        "data": [{ "type": "addThreadDeviceTask", "attributes": attributes }]
+    })
 }

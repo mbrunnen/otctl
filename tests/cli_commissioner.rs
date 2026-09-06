@@ -238,3 +238,164 @@ fn joiner_remove_sends_id_in_body() {
     cmd.assert().success();
     m.assert();
 }
+
+fn action_response(id: &str, status: &str) -> String {
+    format!(
+        r#"{{"data":{{"id":"{id}","type":"addThreadDeviceTask","attributes":{{"status":"{status}"}}}}}}"#
+    )
+}
+
+#[test]
+fn enroll_submits_task_and_waits_for_completion() {
+    let server = MockServer::start();
+    let submit = server.mock(|when, then| {
+        when.method(POST).path("/api/actions").json_body(
+            serde_json::json!({"data":[{"type":"addThreadDeviceTask","attributes":{
+                "pskd":"J01NME","eui":"fedcba9876543210","timeout":900}}]}),
+        );
+        then.status(200)
+            .header("content-type", "application/vnd.api+json")
+            .body(r#"{"data":[{"id":"a1","type":"addThreadDeviceTask"}]}"#);
+    });
+    let poll = server.mock(|when, then| {
+        when.method(GET).path("/api/actions/a1");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(action_response("a1", "completed"));
+    });
+    let mut cmd = Command::cargo_bin("otctl").unwrap();
+    cmd.args([
+        "--base-url",
+        &server.base_url(),
+        "commissioner",
+        "enroll",
+        "--pskd",
+        "J01NME",
+        "--eui",
+        "fedcba9876543210",
+    ]);
+    cmd.assert()
+        .success()
+        .stdout(predicates::str::contains("completed"));
+    submit.assert();
+    poll.assert();
+}
+
+#[test]
+fn enroll_without_target_uses_wildcard_joiner_id() {
+    let server = MockServer::start();
+    let submit = server.mock(|when, then| {
+        when.method(POST).path("/api/actions").json_body(
+            serde_json::json!({"data":[{"type":"addThreadDeviceTask","attributes":{
+                "pskd":"J01NME","joinerId":"*","timeout":900}}]}),
+        );
+        then.status(200)
+            .header("content-type", "application/vnd.api+json")
+            .body(r#"{"data":[{"id":"a1","type":"addThreadDeviceTask"}]}"#);
+    });
+    server.mock(|when, then| {
+        when.method(GET).path("/api/actions/a1");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(action_response("a1", "completed"));
+    });
+    let mut cmd = Command::cargo_bin("otctl").unwrap();
+    cmd.args([
+        "--base-url",
+        &server.base_url(),
+        "commissioner",
+        "enroll",
+        "--pskd",
+        "J01NME",
+    ]);
+    cmd.assert().success();
+    submit.assert();
+}
+
+#[test]
+fn enroll_discerner_and_timeout_reach_the_task() {
+    let server = MockServer::start();
+    let submit = server.mock(|when, then| {
+        when.method(POST).path("/api/actions").json_body(
+            serde_json::json!({"data":[{"type":"addThreadDeviceTask","attributes":{
+                "pskd":"J01NME","discerner":"0xabc/12","timeout":120}}]}),
+        );
+        then.status(200)
+            .header("content-type", "application/vnd.api+json")
+            .body(r#"{"data":[{"id":"a1","type":"addThreadDeviceTask"}]}"#);
+    });
+    server.mock(|when, then| {
+        when.method(GET).path("/api/actions/a1");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(action_response("a1", "completed"));
+    });
+    let mut cmd = Command::cargo_bin("otctl").unwrap();
+    cmd.args([
+        "--base-url",
+        &server.base_url(),
+        "commissioner",
+        "enroll",
+        "--pskd",
+        "J01NME",
+        "--discerner",
+        "0xabc/12",
+        "--timeout",
+        "120",
+    ]);
+    cmd.assert().success();
+    submit.assert();
+}
+
+#[test]
+fn enroll_no_wait_prints_action_id() {
+    let server = MockServer::start();
+    let submit = server.mock(|when, then| {
+        when.method(POST).path("/api/actions");
+        then.status(200)
+            .header("content-type", "application/vnd.api+json")
+            .body(r#"{"data":[{"id":"a1","type":"addThreadDeviceTask"}]}"#);
+    });
+    let poll = server.mock(|when, then| {
+        when.method(GET).path("/api/actions/a1");
+        then.status(200).body(action_response("a1", "completed"));
+    });
+    let mut cmd = Command::cargo_bin("otctl").unwrap();
+    cmd.args([
+        "--base-url",
+        &server.base_url(),
+        "commissioner",
+        "enroll",
+        "--pskd",
+        "J01NME",
+        "--no-wait",
+    ]);
+    cmd.assert()
+        .success()
+        .stdout(predicates::str::contains("a1"));
+    submit.assert();
+    poll.assert_hits(0);
+}
+
+#[test]
+fn enroll_eui_conflicts_with_discerner() {
+    let mut cmd = Command::cargo_bin("otctl").unwrap();
+    cmd.args([
+        "commissioner",
+        "enroll",
+        "--pskd",
+        "J01NME",
+        "--eui",
+        "fedcba9876543210",
+        "--discerner",
+        "0xabc/12",
+    ]);
+    cmd.assert().failure().code(2);
+}
+
+#[test]
+fn enroll_requires_pskd() {
+    let mut cmd = Command::cargo_bin("otctl").unwrap();
+    cmd.args(["commissioner", "enroll"]);
+    cmd.assert().failure().code(2);
+}

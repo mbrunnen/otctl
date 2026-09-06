@@ -164,6 +164,36 @@ pub async fn run(cli: Cli) -> Result<String> {
             node_ext::CommissionerCmd::JoinerRemove { value } => {
                 client.remove_commissioner_joiner(&value).await?
             }
+            node_ext::CommissionerCmd::Enroll {
+                pskd,
+                joiner_id,
+                eui,
+                discerner,
+                timeout,
+                no_wait,
+            } => {
+                let body = node_ext::enroll_body(
+                    &pskd,
+                    joiner_id.as_deref(),
+                    eui.as_deref(),
+                    discerner.as_deref(),
+                    timeout,
+                );
+                if no_wait {
+                    let id = client.submit_action(body).await?;
+                    serde_json::json!({ "id": id })
+                } else {
+                    // The task itself expires after `timeout`; give the border
+                    // router a grace period to report the final status.
+                    client
+                        .submit_and_wait(
+                            body,
+                            std::time::Duration::from_secs(1),
+                            std::time::Duration::from_secs(u64::from(timeout) + 30),
+                        )
+                        .await?
+                }
+            }
         },
         Command::Devices { what } => match what {
             devices::DevicesCmd::List { no_refresh } => {
@@ -190,7 +220,11 @@ pub async fn run(cli: Cli) -> Result<String> {
             devices::DiagnosticsCmd::DeleteAll => client.diagnostics_delete_all().await?,
         },
         Command::Actions { what } => match what {
-            actions::ActionsCmd::Submit { file, no_wait } => {
+            actions::ActionsCmd::Submit {
+                file,
+                no_wait,
+                timeout,
+            } => {
                 let body = node_ext::read_json_input(&file)?;
                 if no_wait {
                     let id = client.submit_action(body).await?;
@@ -200,7 +234,7 @@ pub async fn run(cli: Cli) -> Result<String> {
                         .submit_and_wait(
                             body,
                             std::time::Duration::from_secs(1),
-                            std::time::Duration::from_secs(60),
+                            std::time::Duration::from_secs(timeout),
                         )
                         .await?
                 }
