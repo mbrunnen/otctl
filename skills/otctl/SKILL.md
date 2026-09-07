@@ -21,13 +21,11 @@ description: Use when working with an OpenThread Border Router (OTBR) — Thread
 Every subcommand supports `--json` for machine-readable output; without it, output is a human-readable table.
 
 ```bash
-otctl --base-url <url> node state --json
-otctl --base-url <url> devices list --json
+otctl node state --json
+otctl devices list --json
 ```
 
-Base URL: `--base-url` flag or `OTBR_URL` env var. Default is `http://127.0.0.1:8081`. No auth required.
-
-The user's border router is reachable at `https://otbr.lan.lee-brunnen.de`.
+The base URL is already configured in `~/.config/otctl/config.toml` — never pass `--base-url` or set `OTBR_URL`. No auth required.
 
 ## Commands
 
