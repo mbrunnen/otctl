@@ -36,20 +36,34 @@ the subcommands and flags of the version that produced it.
 
 | Flag | Env | Default | Description |
 |------|-----|---------|-------------|
-| `--base-url` | `OTBR_URL` | `http://127.0.0.1:8081` | Base URL of the OTBR REST API |
+| `--base-url` | `OTBR_URL` | | Base URL of an OTBR REST API that is not saved |
+| `--router` | `OTBR_ROUTER` | the default router | Name of a saved border router |
 | `--json` | | false | Output raw JSON instead of a human-readable table |
 
-The base URL is resolved in this order: `--base-url` flag, then `OTBR_URL` env var, then the `base_url` in the config file, then the built-in default.
+`--base-url` and `--router` cannot be used together. The base URL is resolved in this order: `--base-url`/`OTBR_URL`, then `--router`/`OTBR_ROUTER`, then the default router in the config file, then the built-in `http://127.0.0.1:8081` (only when no router is saved).
 
 ### config
 
-Save a default base URL so you don't have to pass `--base-url` every time.
+Save your border routers by name, so you don't have to pass `--base-url` every time.
 
 ```
-otctl config init
+otctl config add lab http://127.0.0.1:8081
+otctl config add home http://home.lan:8081
+otctl config list
+otctl config default home
+otctl config remove lab
 ```
 
-Prompts for a base URL, showing the currently configured value (or the built-in default) as the default you get by pressing Enter. Writes to `~/.config/otctl/config.toml` (or `$XDG_CONFIG_HOME/otctl/config.toml`).
+The first router you add becomes the default. Calls without `--router` go to the default router. The config is written to `~/.config/otctl/config.toml` (or `$XDG_CONFIG_HOME/otctl/config.toml`):
+
+```toml
+default = "home"
+
+[routers.home]
+url = "http://home.lan:8081"
+```
+
+A config file from an older version with a single `base_url` key is not read. Delete it and add your routers again with `otctl config add`.
 
 ## Commands
 

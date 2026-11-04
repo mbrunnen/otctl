@@ -25,7 +25,7 @@ otctl node state --json
 otctl devices list --json
 ```
 
-The base URL is already configured in `~/.config/otctl/config.toml` — never pass `--base-url` or set `OTBR_URL`. No auth required.
+The border routers are already configured in `~/.config/otctl/config.toml`; calls go to the default router. When the user names another border router, select it with `--router <name>` (`otctl config list` shows the saved names). Never pass `--base-url` or set `OTBR_URL`. No auth required.
 
 ## Commands
 

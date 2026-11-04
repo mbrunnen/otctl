@@ -14,6 +14,9 @@ use clap_complete::{generate, Shell};
 pub struct Cli {
     #[arg(long, env = "OTBR_URL", global = true)]
     pub base_url: Option<String>,
+    /// Name of a saved border router (see `otctl config list`)
+    #[arg(long, env = "OTBR_ROUTER", global = true, conflicts_with = "base_url")]
+    pub router: Option<String>,
     #[arg(long, global = true)]
     pub json: bool,
     #[command(subcommand)]
@@ -46,8 +49,24 @@ pub enum Command {
         #[command(subcommand)]
         what: actions::ActionsCmd,
     },
+    Config {
+        #[command(subcommand)]
+        what: ConfigCmd,
+    },
     /// Print a shell completion script to stdout
     Completions { shell: Shell },
+}
+
+#[derive(Subcommand)]
+pub enum ConfigCmd {
+    /// Save a border router under a name
+    Add { name: String, url: String },
+    /// Delete a saved border router
+    Remove { name: String },
+    /// Show the saved border routers
+    List,
+    /// Use a saved border router when no --router is given
+    Default { name: String },
 }
 
 #[derive(Subcommand)]
@@ -77,7 +96,14 @@ pub async fn run(cli: Cli) -> Result<String> {
         return Ok(completions(shell));
     }
 
-    let base_url = Config::load()?.resolve_url(cli.base_url, None, DEFAULT_BASE_URL)?;
+    if let Command::Config { what } = cli.command {
+        return config(what, cli.json);
+    }
+
+    let base_url = match cli.base_url {
+        Some(url) => url,
+        None => Config::load()?.resolve_url(None, cli.router, DEFAULT_BASE_URL)?,
+    };
     let client = OtbrClient::new(&base_url);
     let value = match cli.command {
         Command::Node { what } => match what {
@@ -233,7 +259,7 @@ pub async fn run(cli: Cli) -> Result<String> {
             actions::ActionsCmd::Get { id } => client.get_action(&id).await?,
             actions::ActionsCmd::DeleteAll => client.actions_delete_all().await?,
         },
-        Command::Completions { .. } => {
+        Command::Config { .. } | Command::Completions { .. } => {
             unreachable!("handled above before client construction")
         }
     };
@@ -244,6 +270,53 @@ fn completions(shell: Shell) -> String {
     let mut buf = Vec::new();
     generate(shell, &mut Cli::command(), "otctl", &mut buf);
     String::from_utf8_lossy(&buf).into_owned()
+}
+
+fn config(what: ConfigCmd, json: bool) -> Result<String> {
+    let mut config = Config::load()?;
+    let message = match what {
+        ConfigCmd::List => {
+            let list: Vec<serde_json::Value> = config
+                .routers
+                .iter()
+                .map(|(name, router)| {
+                    serde_json::json!({
+                        "name": name,
+                        "url": router.url,
+                        "default": config.default.as_deref() == Some(name.as_str()),
+                    })
+                })
+                .collect();
+            if json {
+                return Ok(to_output(&serde_json::Value::Array(list), true));
+            }
+            let mut table = comfy_table::Table::new();
+            table.set_header(vec!["name", "url", "default"]);
+            for (name, router) in &config.routers {
+                let marker = if config.default.as_deref() == Some(name.as_str()) {
+                    "*"
+                } else {
+                    ""
+                };
+                table.add_row(vec![name.as_str(), router.url.as_str(), marker]);
+            }
+            return Ok(table.to_string());
+        }
+        ConfigCmd::Add { name, url } => {
+            config.add(&name, &url)?;
+            format!("Added router '{name}'")
+        }
+        ConfigCmd::Remove { name } => {
+            config.remove(&name)?;
+            format!("Removed router '{name}'")
+        }
+        ConfigCmd::Default { name } => {
+            config.set_default(&name)?;
+            format!("Default router is '{name}'")
+        }
+    };
+    config.save()?;
+    Ok(to_output(&serde_json::Value::String(message), json))
 }
 
 pub fn exit_code(err: &Error) -> i32 {
