@@ -13,7 +13,7 @@ pub struct Router {
 pub struct Config {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub routers: BTreeMap<String, Router>,
 }
 
@@ -96,15 +96,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn resolve_url(
-        &self,
-        base_url: Option<String>,
-        router: Option<String>,
-        builtin: &str,
-    ) -> Result<String> {
-        if let Some(url) = base_url {
-            return Ok(url);
-        }
+    pub fn resolve_url(&self, router: Option<String>, builtin: &str) -> Result<String> {
         let name = match router.or_else(|| self.default.clone()) {
             Some(name) => name,
             None if self.routers.is_empty() => return Ok(builtin.to_string()),
@@ -174,29 +166,21 @@ mod tests {
     }
 
     #[test]
-    fn resolve_prefers_base_url_then_router_then_default() {
+    fn resolve_prefers_router_then_default() {
         let c = two_routers();
         assert_eq!(
-            c.resolve_url(Some("http://adhoc".into()), None, "http://builtin")
-                .unwrap(),
-            "http://adhoc"
-        );
-        assert_eq!(
-            c.resolve_url(None, Some("home".into()), "http://builtin")
+            c.resolve_url(Some("home".into()), "http://builtin")
                 .unwrap(),
             "http://home"
         );
-        assert_eq!(
-            c.resolve_url(None, None, "http://builtin").unwrap(),
-            "http://lab"
-        );
+        assert_eq!(c.resolve_url(None, "http://builtin").unwrap(), "http://lab");
     }
 
     #[test]
     fn resolve_uses_builtin_only_when_no_router_saved() {
         let c = Config::default();
         assert_eq!(
-            c.resolve_url(None, None, "http://builtin").unwrap(),
+            c.resolve_url(None, "http://builtin").unwrap(),
             "http://builtin"
         );
     }
@@ -206,7 +190,7 @@ mod tests {
         let mut c = two_routers();
         c.default = None;
         let err = c
-            .resolve_url(None, None, "http://builtin")
+            .resolve_url(None, "http://builtin")
             .unwrap_err()
             .to_string();
         assert!(err.contains("otctl config default <name>"), "{err}");
@@ -216,7 +200,7 @@ mod tests {
     fn resolve_unknown_router_lists_saved_names() {
         let c = two_routers();
         let err = c
-            .resolve_url(None, Some("lba".into()), "http://builtin")
+            .resolve_url(Some("lba".into()), "http://builtin")
             .unwrap_err()
             .to_string();
         assert!(err.contains("unknown router 'lba'"), "{err}");

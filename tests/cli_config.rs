@@ -263,3 +263,56 @@ fn base_url_and_router_flags_conflict() {
         .code(2);
     m.assert_hits(0);
 }
+
+#[test]
+fn router_flag_rejected_for_config_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    add(dir.path(), "lab", "http://lab.test");
+    otctl(dir.path())
+        .args(["--router", "lab", "config", "list"])
+        .assert()
+        .code(2)
+        .stderr(predicates::str::contains("no effect"));
+    otctl(dir.path())
+        .args(["--base-url", "http://x", "completions", "bash"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn router_env_allowed_for_config_commands() {
+    let dir = tempfile::tempdir().unwrap();
+    add(dir.path(), "lab", "http://lab.test");
+    otctl(dir.path())
+        .env("OTBR_ROUTER", "lab")
+        .args(["config", "list"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn removing_last_router_leaves_no_routers_header() {
+    let dir = tempfile::tempdir().unwrap();
+    add(dir.path(), "lab", "http://lab.test");
+    otctl(dir.path())
+        .args(["config", "remove", "lab"])
+        .assert()
+        .success();
+    let text = config_text(dir.path());
+    assert!(!text.contains("[routers]"), "{text}");
+}
+
+#[test]
+fn config_list_without_routers_says_so() {
+    let dir = tempfile::tempdir().unwrap();
+    otctl(dir.path())
+        .args(["config", "list"])
+        .assert()
+        .success()
+        .stdout(predicates::str::contains("no routers saved"));
+    otctl(dir.path())
+        .args(["--json", "config", "list"])
+        .assert()
+        .success()
+        .stdout(predicates::str::diff("[]\n"));
+}

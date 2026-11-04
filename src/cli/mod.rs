@@ -101,6 +101,20 @@ impl Cli {
         let mut cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
         let url = matches.value_source("base_url");
         let router = matches.value_source("router");
+        let typed = [url, router].contains(&Some(ValueSource::CommandLine));
+        if typed
+            && matches!(
+                cli.command,
+                Command::Config { .. } | Command::Completions { .. }
+            )
+        {
+            command
+                .error(
+                    ErrorKind::ArgumentConflict,
+                    "--base-url and --router have no effect on config and completions",
+                )
+                .exit();
+        }
         match (url, router) {
             (Some(ValueSource::CommandLine), Some(ValueSource::EnvVariable)) => cli.router = None,
             (Some(ValueSource::EnvVariable), Some(ValueSource::CommandLine)) => cli.base_url = None,
@@ -127,7 +141,7 @@ pub async fn run(cli: Cli) -> Result<String> {
 
     let base_url = match cli.base_url {
         Some(url) => url,
-        None => Config::load()?.resolve_url(None, cli.router, DEFAULT_BASE_URL)?,
+        None => Config::load()?.resolve_url(cli.router, DEFAULT_BASE_URL)?,
     };
     let client = OtbrClient::new(&base_url);
     let value = match cli.command {
@@ -301,29 +315,34 @@ fn config(what: ConfigCmd, json: bool) -> Result<String> {
     let mut config = Config::load()?;
     let message = match what {
         ConfigCmd::List => {
-            let list: Vec<serde_json::Value> = config
+            let rows: Vec<(&String, &String, bool)> = config
                 .routers
                 .iter()
                 .map(|(name, router)| {
-                    serde_json::json!({
-                        "name": name,
-                        "url": router.url,
-                        "default": config.default.as_deref() == Some(name.as_str()),
-                    })
+                    let is_default = config.default.as_deref() == Some(name.as_str());
+                    (name, &router.url, is_default)
                 })
                 .collect();
             if json {
+                let list = rows
+                    .iter()
+                    .map(|(name, url, is_default)| {
+                        serde_json::json!({"name": name, "url": url, "default": is_default})
+                    })
+                    .collect();
                 return Ok(to_output(&serde_json::Value::Array(list), true));
+            }
+            if rows.is_empty() {
+                return Ok("no routers saved".into());
             }
             let mut table = comfy_table::Table::new();
             table.set_header(vec!["name", "url", "default"]);
-            for (name, router) in &config.routers {
-                let marker = if config.default.as_deref() == Some(name.as_str()) {
-                    "*"
-                } else {
-                    ""
-                };
-                table.add_row(vec![name.as_str(), router.url.as_str(), marker]);
+            for (name, url, is_default) in rows {
+                table.add_row(vec![
+                    name.as_str(),
+                    url.as_str(),
+                    if is_default { "*" } else { "" },
+                ]);
             }
             return Ok(table.to_string());
         }

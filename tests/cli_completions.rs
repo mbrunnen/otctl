@@ -38,6 +38,7 @@ fn unknown_shell_is_a_usage_error() {
 #[test]
 fn completions_need_no_border_router() {
     let mut cmd = Command::cargo_bin("otctl").unwrap();
-    cmd.args(["--base-url", "http://127.0.0.1:1", "completions", "zsh"]);
+    cmd.env("OTBR_URL", "http://127.0.0.1:1");
+    cmd.args(["completions", "zsh"]);
     cmd.assert().success();
 }
