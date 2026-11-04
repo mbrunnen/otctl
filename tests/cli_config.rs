@@ -213,3 +213,53 @@ fn config_list_prints_table_without_json() {
         .stdout(predicates::str::contains("http://lab.test"))
         .stdout(predicates::str::contains("{").not());
 }
+
+#[test]
+fn base_url_flag_overrides_router_env() {
+    let server = MockServer::start();
+    let m = rloc16_mock(&server);
+    let dir = tempfile::tempdir().unwrap();
+    otctl(dir.path())
+        .env("OTBR_ROUTER", "lab")
+        .args(["--base-url", &server.base_url(), "node", "rloc16"])
+        .assert()
+        .success();
+    m.assert();
+}
+
+#[test]
+fn router_flag_overrides_base_url_env() {
+    let a = MockServer::start();
+    let b = MockServer::start();
+    let mock_a = rloc16_mock(&a);
+    let mock_b = rloc16_mock(&b);
+    let dir = tempfile::tempdir().unwrap();
+    add(dir.path(), "b", &b.base_url());
+    otctl(dir.path())
+        .env("OTBR_URL", a.base_url())
+        .args(["--router", "b", "node", "rloc16"])
+        .assert()
+        .success();
+    mock_b.assert();
+    mock_a.assert_hits(0);
+}
+
+#[test]
+fn base_url_and_router_flags_conflict() {
+    let server = MockServer::start();
+    let m = rloc16_mock(&server);
+    let dir = tempfile::tempdir().unwrap();
+    add(dir.path(), "lab", &server.base_url());
+    otctl(dir.path())
+        .args([
+            "--base-url",
+            &server.base_url(),
+            "--router",
+            "lab",
+            "node",
+            "rloc16",
+        ])
+        .assert()
+        .code(2);
+    m.assert_hits(0);
+}

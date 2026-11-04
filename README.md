@@ -40,7 +40,7 @@ the subcommands and flags of the version that produced it.
 | `--router` | `OTBR_ROUTER` | the default router | Name of a saved border router |
 | `--json` | | false | Output raw JSON instead of a human-readable table |
 
-`--base-url` and `--router` cannot be used together. The base URL is resolved in this order: `--base-url`/`OTBR_URL`, then `--router`/`OTBR_ROUTER`, then the default router in the config file, then the built-in `http://127.0.0.1:8081` (only when no router is saved).
+`--base-url` and `--router` cannot be used together, and neither can `OTBR_URL` and `OTBR_ROUTER`. A flag you type overrides the env var of the other one. The base URL is resolved in this order: `--base-url`/`OTBR_URL`, then `--router`/`OTBR_ROUTER`, then the default router in the config file, then the built-in `http://127.0.0.1:8081` (only when no router is saved).
 
 ### config
 

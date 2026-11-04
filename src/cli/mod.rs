@@ -6,7 +6,9 @@ use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::facade::{OtbrClient, DEFAULT_BASE_URL};
 use crate::render::to_output;
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::error::ErrorKind;
+use clap::parser::ValueSource;
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use clap_complete::{generate, Shell};
 
 #[derive(Parser)]
@@ -15,7 +17,7 @@ pub struct Cli {
     #[arg(long, env = "OTBR_URL", global = true)]
     pub base_url: Option<String>,
     /// Name of a saved border router (see `otctl config list`)
-    #[arg(long, env = "OTBR_ROUTER", global = true, conflicts_with = "base_url")]
+    #[arg(long, env = "OTBR_ROUTER", global = true)]
     pub router: Option<String>,
     #[arg(long, global = true)]
     pub json: bool,
@@ -89,6 +91,29 @@ pub enum NodeCmd {
         #[arg(long)]
         yes: bool,
     },
+}
+
+impl Cli {
+    /// Parse like `Cli::parse`, but a typed `--base-url` or `--router` overrides the other one's env var.
+    pub fn parse_args() -> Cli {
+        let mut command = Cli::command();
+        let matches = command.get_matches_mut();
+        let mut cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+        let url = matches.value_source("base_url");
+        let router = matches.value_source("router");
+        match (url, router) {
+            (Some(ValueSource::CommandLine), Some(ValueSource::EnvVariable)) => cli.router = None,
+            (Some(ValueSource::EnvVariable), Some(ValueSource::CommandLine)) => cli.base_url = None,
+            (Some(_), Some(_)) => command
+                .error(
+                    ErrorKind::ArgumentConflict,
+                    "--base-url (OTBR_URL) and --router (OTBR_ROUTER) cannot be used together",
+                )
+                .exit(),
+            _ => {}
+        }
+        cli
+    }
 }
 
 pub async fn run(cli: Cli) -> Result<String> {

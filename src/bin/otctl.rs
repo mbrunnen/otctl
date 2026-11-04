@@ -1,9 +1,8 @@
-use clap::Parser;
 use otctl::cli::{exit_code, run, Cli};
 
 #[tokio::main]
 async fn main() {
-    let cli = Cli::parse();
+    let cli = Cli::parse_args();
     match run(cli).await {
         Ok(output) => println!("{output}"),
         Err(err) => {
